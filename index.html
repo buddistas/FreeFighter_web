@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeFighter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>FreeFighter</h1>
+        
+        <div class="fighters-container">
+            <!-- Игрок -->
+            <div class="fighter-section player-section">
+                <div class="fighter-label">Игрок</div>
+                <div class="health-bar-container">
+                    <div class="health-bar" id="player-health-bar">
+                        <div class="health-fill" id="player-health-fill"></div>
+                    </div>
+                    <div class="health-text" id="player-health-text">20 / 20</div>
+                </div>
+                <div class="action-display" id="player-action-display">
+                    <img id="player-action-image" src="" alt="">
+                </div>
+            </div>
+
+            <!-- Центральная область для надписей о попадании/блокировании -->
+            <div class="action-result-display" id="action-result-display">
+                <div class="action-result-text" id="action-result-text"></div>
+            </div>
+
+            <!-- Противник -->
+            <div class="fighter-section enemy-section">
+                <div class="fighter-label">Противник</div>
+                <div class="health-bar-container">
+                    <div class="health-bar" id="enemy-health-bar">
+                        <div class="health-fill" id="enemy-health-fill"></div>
+                    </div>
+                    <div class="health-text" id="enemy-health-text">20 / 20</div>
+                </div>
+                <div class="action-display" id="enemy-action-display">
+                    <img id="enemy-action-image" src="" alt="">
+                </div>
+            </div>
+        </div>
+
+        <!-- Кнопки выбора -->
+        <div class="controls-container" id="controls-container">
+            <div class="phase-label" id="phase-label">Выберите 3 действия</div>
+            <div class="action-buttons">
+                <button class="action-btn" data-action="high" id="btn-high">
+                    <span>Верх</span>
+                </button>
+                <button class="action-btn" data-action="mid" id="btn-mid">
+                    <span>Середина</span>
+                </button>
+                <button class="action-btn" data-action="low" id="btn-low">
+                    <span>Низ</span>
+                </button>
+            </div>
+            <div class="selected-actions" id="selected-actions">
+                <div class="selected-label">Выбрано:</div>
+                <div class="selected-list" id="selected-list"></div>
+            </div>
+        </div>
+
+        <!-- Кнопка рестарта -->
+        <div class="restart-container" id="restart-container" style="display: none;">
+            <div class="game-result" id="game-result"></div>
+            <button class="restart-btn" id="restart-btn">Новая игра</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
+
