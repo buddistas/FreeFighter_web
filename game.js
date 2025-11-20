@@ -22,26 +22,53 @@ const PERSONALITY_NAMES = {
     [OPPONENT_PERSONALITY.PERSISTENT]: 'Упорный'
 };
 
-// Перки
+// Класс перка
+class Perk {
+    constructor(id, name, fullName, description, targetZone) {
+        this.id = id;
+        this.name = name; // Короткое название для отображения в игре
+        this.fullName = fullName; // Полное название для экрана выбора
+        this.description = description; // Описание эффекта
+        this.targetZone = targetZone; // Зона, на которую влияет перк ('high', 'mid', 'low')
+    }
+
+    // Применяет эффект перка к бойцу
+    apply(fighter) {
+        if (!fighter || !this.targetZone) {
+            return;
+        }
+        
+        // Удваиваем вероятность крита для выбранной зоны
+        fighter.critChance[this.targetZone] = DEFAULT_CRIT_CHANCE[this.targetZone] * 2;
+    }
+}
+
+// Определение всех перков
 const PERKS = {
-    DOUBLE_CRIT_HIGH: 'double_crit_high',
-    DOUBLE_CRIT_MID: 'double_crit_mid',
-    DOUBLE_CRIT_LOW: 'double_crit_low'
+    HEAD_HUNTER: new Perk(
+        'head_hunter',
+        'HeadHunter',
+        'Удвоенная вероятность крита в голову',
+        'Вероятность критического удара в голову удваивается',
+        'high'
+    ),
+    BODY_HUNTER: new Perk(
+        'body_hunter',
+        'BodyHunter',
+        'Удвоенная вероятность крита в тело',
+        'Вероятность критического удара в тело удваивается',
+        'mid'
+    ),
+    LEG_HUNTER: new Perk(
+        'leg_hunter',
+        'LegHunter',
+        'Удвоенная вероятность крита в ноги',
+        'Вероятность критического удара в ноги удваивается',
+        'low'
+    )
 };
 
-const PERK_NAMES = {
-    [PERKS.DOUBLE_CRIT_HIGH]: 'Удвоенная вероятность крита в голову',
-    [PERKS.DOUBLE_CRIT_MID]: 'Удвоенная вероятность крита в тело',
-    [PERKS.DOUBLE_CRIT_LOW]: 'Удвоенная вероятность крита в ноги'
-};
-
-const PERK_DESCRIPTIONS = {
-    [PERKS.DOUBLE_CRIT_HIGH]: 'Вероятность критического удара в голову удваивается',
-    [PERKS.DOUBLE_CRIT_MID]: 'Вероятность критического удара в тело удваивается',
-    [PERKS.DOUBLE_CRIT_LOW]: 'Вероятность критического удара в ноги удваивается'
-};
-
-const ALL_PERKS = [PERKS.DOUBLE_CRIT_HIGH, PERKS.DOUBLE_CRIT_MID, PERKS.DOUBLE_CRIT_LOW];
+const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER];
 const ENEMY_PERKS_COUNT = 1; // Количество случайных перков для противника
 
 // Пути к изображениям
@@ -114,14 +141,8 @@ class Fighter {
         }
         
         this.activePerk = perk;
-        // Удваиваем вероятность крита для выбранной зоны (добавляем +100% к базовой)
-        if (perk === PERKS.DOUBLE_CRIT_HIGH) {
-            this.critChance.high = DEFAULT_CRIT_CHANCE.high * 2; // 10% → 20%
-        } else if (perk === PERKS.DOUBLE_CRIT_MID) {
-            this.critChance.mid = DEFAULT_CRIT_CHANCE.mid * 2; // 5% → 10%
-        } else if (perk === PERKS.DOUBLE_CRIT_LOW) {
-            this.critChance.low = DEFAULT_CRIT_CHANCE.low * 2; // 5% → 10%
-        }
+        // Применяем эффект перка
+        perk.apply(this);
     }
 }
 
@@ -162,9 +183,9 @@ class Game {
         
         // Экран выбора перка
         this.perkSelectionContainer = document.getElementById('perk-selection-container');
-        this.perkDoubleCritHighBtn = document.getElementById('perk-double-crit-high-btn');
-        this.perkDoubleCritMidBtn = document.getElementById('perk-double-crit-mid-btn');
-        this.perkDoubleCritLowBtn = document.getElementById('perk-double-crit-low-btn');
+        this.perkHeadHunterBtn = document.getElementById('perk-head-hunter-btn');
+        this.perkBodyHunterBtn = document.getElementById('perk-body-hunter-btn');
+        this.perkLegHunterBtn = document.getElementById('perk-leg-hunter-btn');
         
         // Отображение активных перков
         this.playerPerkDisplay = document.getElementById('player-perk-display');
@@ -197,9 +218,9 @@ class Game {
         this.personalityPersistentBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.PERSISTENT));
         
         // Обработчики выбора перка
-        this.perkDoubleCritHighBtn.addEventListener('click', () => this.selectPerk(PERKS.DOUBLE_CRIT_HIGH));
-        this.perkDoubleCritMidBtn.addEventListener('click', () => this.selectPerk(PERKS.DOUBLE_CRIT_MID));
-        this.perkDoubleCritLowBtn.addEventListener('click', () => this.selectPerk(PERKS.DOUBLE_CRIT_LOW));
+        this.perkHeadHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.HEAD_HUNTER));
+        this.perkBodyHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.BODY_HUNTER));
+        this.perkLegHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.LEG_HUNTER));
         
         // Обработчик изменения размера окна для обновления засечек
         window.addEventListener('resize', () => {
@@ -535,6 +556,29 @@ class Game {
         this.perkSelectionContainer.style.display = 'block';
         this.controlsContainer.style.display = 'none';
         this.restartContainer.style.display = 'none';
+        
+        // Обновляем текст кнопок перков из объектов Perk
+        this.updatePerkButtons();
+    }
+
+    updatePerkButtons() {
+        // HeadHunter
+        const headHunterTitle = this.perkHeadHunterBtn.querySelector('.perk-btn-title');
+        const headHunterDesc = this.perkHeadHunterBtn.querySelector('.perk-btn-description');
+        if (headHunterTitle) headHunterTitle.textContent = PERKS.HEAD_HUNTER.name;
+        if (headHunterDesc) headHunterDesc.textContent = PERKS.HEAD_HUNTER.fullName;
+        
+        // BodyHunter
+        const bodyHunterTitle = this.perkBodyHunterBtn.querySelector('.perk-btn-title');
+        const bodyHunterDesc = this.perkBodyHunterBtn.querySelector('.perk-btn-description');
+        if (bodyHunterTitle) bodyHunterTitle.textContent = PERKS.BODY_HUNTER.name;
+        if (bodyHunterDesc) bodyHunterDesc.textContent = PERKS.BODY_HUNTER.fullName;
+        
+        // LegHunter
+        const legHunterTitle = this.perkLegHunterBtn.querySelector('.perk-btn-title');
+        const legHunterDesc = this.perkLegHunterBtn.querySelector('.perk-btn-description');
+        if (legHunterTitle) legHunterTitle.textContent = PERKS.LEG_HUNTER.name;
+        if (legHunterDesc) legHunterDesc.textContent = PERKS.LEG_HUNTER.fullName;
     }
 
     selectPerk(perk) {
@@ -580,18 +624,18 @@ class Game {
     }
 
     updatePerkDisplays() {
-        // Обновляем отображение перка игрока
+        // Обновляем отображение перка игрока (короткое название)
         if (this.player.activePerk) {
-            this.playerPerkDisplay.textContent = PERK_NAMES[this.player.activePerk];
+            this.playerPerkDisplay.textContent = this.player.activePerk.name;
             this.playerPerkDisplay.classList.add('active');
         } else {
             this.playerPerkDisplay.textContent = '';
             this.playerPerkDisplay.classList.remove('active');
         }
         
-        // Обновляем отображение перка противника
+        // Обновляем отображение перка противника (короткое название)
         if (this.enemy.activePerk) {
-            this.enemyPerkDisplay.textContent = PERK_NAMES[this.enemy.activePerk];
+            this.enemyPerkDisplay.textContent = this.enemy.activePerk.name;
             this.enemyPerkDisplay.classList.add('active');
         } else {
             this.enemyPerkDisplay.textContent = '';
