@@ -50,8 +50,23 @@
             </div>
         </div>
 
+        <!-- Экран выбора характера оппонента -->
+        <div class="personality-selection-container" id="personality-selection-container">
+            <div class="personality-selection-title">Выберите характер оппонента</div>
+            <div class="personality-buttons">
+                <button class="personality-btn" id="personality-random-btn">
+                    <div class="personality-btn-title">Рандомный</div>
+                    <div class="personality-btn-description">Выбирает действия случайным образом</div>
+                </button>
+                <button class="personality-btn" id="personality-persistent-btn">
+                    <div class="personality-btn-title">Упорный</div>
+                    <div class="personality-btn-description">Часто повторяет одинаковые действия</div>
+                </button>
+            </div>
+        </div>
+
         <!-- Кнопки выбора -->
-        <div class="controls-container" id="controls-container">
+        <div class="controls-container" id="controls-container" style="display: none;">
             <div class="phase-label" id="phase-label">Выберите 3 действия</div>
             <div class="action-buttons">
                 <button class="action-btn" data-action="high" id="btn-high">

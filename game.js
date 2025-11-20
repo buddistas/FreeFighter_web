@@ -5,6 +5,17 @@ const ACTIONS_PER_PHASE = 3;
 const DELAY_BETWEEN_ACTIONS = 1000; // 1 секунда
 const DELAY_BETWEEN_PHASES = 2000; // 2 секунды
 
+// Характеры оппонента
+const OPPONENT_PERSONALITY = {
+    RANDOM: 'random',
+    PERSISTENT: 'persistent'
+};
+
+const PERSONALITY_NAMES = {
+    [OPPONENT_PERSONALITY.RANDOM]: 'Рандомный',
+    [OPPONENT_PERSONALITY.PERSISTENT]: 'Упорный'
+};
+
 // Пути к изображениям
 const IMAGE_PATHS = {
     attack: {
@@ -55,11 +66,12 @@ class Game {
     constructor() {
         this.player = new Fighter('Игрок', true);
         this.enemy = new Fighter('Противник', false);
-        this.currentPhase = 'selection'; // selection, playing, finished
+        this.currentPhase = 'personality-selection'; // personality-selection, selection, playing, finished
         this.roundNumber = 1;
         this.isPlayerAttacking = true; // В первом раунде игрок атакует первым
         this.selectedActions = [];
         this.isTieRound = false;
+        this.opponentPersonality = null; // Характер оппонента
         
         this.initializeUI();
     }
@@ -78,6 +90,11 @@ class Game {
         this.restartBtn = document.getElementById('restart-btn');
         this.gameResult = document.getElementById('game-result');
         
+        // Экран выбора характера
+        this.personalitySelectionContainer = document.getElementById('personality-selection-container');
+        this.personalityRandomBtn = document.getElementById('personality-random-btn');
+        this.personalityPersistentBtn = document.getElementById('personality-persistent-btn');
+        
         // Полоски здоровья
         this.playerHealthBar = document.getElementById('player-health-bar');
         this.playerHealthFill = document.getElementById('player-health-fill');
@@ -93,18 +110,24 @@ class Game {
         this.enemyActionImage = document.getElementById('enemy-action-image');
         this.actionResultText = document.getElementById('action-result-text');
         
+        // Метка противника (для отображения характера)
+        this.enemyLabel = document.querySelector('.enemy-section .fighter-label');
+        
         // Обработчики событий
         this.btnHigh.addEventListener('click', () => this.selectAction('high'));
         this.btnMid.addEventListener('click', () => this.selectAction('mid'));
         this.btnLow.addEventListener('click', () => this.selectAction('low'));
         this.restartBtn.addEventListener('click', () => this.restart());
+        this.personalityRandomBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.RANDOM));
+        this.personalityPersistentBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.PERSISTENT));
         
         // Обработчик изменения размера окна для обновления засечек
         window.addEventListener('resize', () => {
             this.updateHealthBars();
         });
         
-        this.updateHealthBars();
+        // Показываем экран выбора характера при старте
+        this.showPersonalitySelection();
     }
 
     selectAction(action) {
@@ -147,10 +170,10 @@ class Game {
         // Устанавливаем последовательности
         if (this.isPlayerAttacking) {
             this.player.setAttackSequence([...this.selectedActions]);
-            this.enemy.setBlockSequence(this.generateRandomSequence());
+            this.enemy.setBlockSequence(this.generateEnemySequence());
         } else {
             this.player.setBlockSequence([...this.selectedActions]);
-            this.enemy.setAttackSequence(this.generateRandomSequence());
+            this.enemy.setAttackSequence(this.generateEnemySequence());
         }
         
         this.selectedActions = [];
@@ -159,12 +182,43 @@ class Game {
         this.executePhases();
     }
 
+    generateEnemySequence() {
+        if (this.opponentPersonality === OPPONENT_PERSONALITY.PERSISTENT) {
+            return this.generatePersistentSequence();
+        } else {
+            return this.generateRandomSequence();
+        }
+    }
+
     generateRandomSequence() {
         const actions = ['high', 'mid', 'low'];
         const sequence = [];
         for (let i = 0; i < ACTIONS_PER_PHASE; i++) {
             sequence.push(actions[Math.floor(Math.random() * actions.length)]);
         }
+        return sequence;
+    }
+
+    generatePersistentSequence() {
+        const actions = ['high', 'mid', 'low'];
+        const sequence = [];
+        
+        // Первое действие выбираем случайно
+        let lastAction = actions[Math.floor(Math.random() * actions.length)];
+        sequence.push(lastAction);
+        
+        // Для остальных двух действий с вероятностью 70% повторяем предыдущее
+        for (let i = 1; i < ACTIONS_PER_PHASE; i++) {
+            if (Math.random() < 0.7) {
+                // 70% вероятность - повторяем предыдущее действие
+                sequence.push(lastAction);
+            } else {
+                // 30% вероятность - выбираем случайное действие
+                lastAction = actions[Math.floor(Math.random() * actions.length)];
+                sequence.push(lastAction);
+            }
+        }
+        
         return sequence;
     }
 
@@ -347,10 +401,29 @@ class Game {
         }
     }
 
+    showPersonalitySelection() {
+        this.currentPhase = 'personality-selection';
+        this.personalitySelectionContainer.style.display = 'block';
+        this.controlsContainer.style.display = 'none';
+        this.restartContainer.style.display = 'none';
+    }
+
+    selectPersonality(personality) {
+        this.opponentPersonality = personality;
+        this.personalitySelectionContainer.style.display = 'none';
+        this.controlsContainer.style.display = 'block';
+        this.currentPhase = 'selection';
+        
+        // Обновляем метку противника
+        this.enemyLabel.textContent = PERSONALITY_NAMES[personality];
+        
+        // Инициализируем игру
+        this.updateHealthBars();
+    }
+
     restart() {
         this.player.reset(MAX_HP);
         this.enemy.reset(MAX_HP);
-        this.currentPhase = 'selection';
         this.roundNumber = 1;
         this.isPlayerAttacking = true;
         this.selectedActions = [];
@@ -359,15 +432,9 @@ class Game {
         this.clearActionDisplays();
         this.updateHealthBars();
         this.selectedList.innerHTML = '';
-        this.phaseLabel.textContent = 'Выберите 3 действия';
         
-        this.controlsContainer.style.display = 'block';
-        this.restartContainer.style.display = 'none';
-        
-        [this.btnHigh, this.btnMid, this.btnLow].forEach(btn => {
-            btn.disabled = false;
-            btn.classList.remove('selected');
-        });
+        // Показываем экран выбора характера при рестарте
+        this.showPersonalitySelection();
     }
 
     delay(ms) {

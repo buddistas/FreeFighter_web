@@ -365,6 +365,67 @@ h1 {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
+/* Экран выбора характера оппонента */
+.personality-selection-container {
+    text-align: center;
+    padding: 40px 20px;
+    display: none;
+}
+
+.personality-selection-title {
+    font-size: 1.8em;
+    font-weight: bold;
+    margin-bottom: 40px;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.personality-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    align-items: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.personality-btn {
+    width: 100%;
+    padding: 30px;
+    border: 3px solid #333;
+    border-radius: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.personality-btn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    border-color: #4CAF50;
+}
+
+.personality-btn:active {
+    transform: translateY(-2px);
+}
+
+.personality-btn-title {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.personality-btn-description {
+    font-size: 1em;
+    opacity: 0.9;
+    font-style: italic;
+}
+
 /* Оптимизация для мобильных устройств */
 @media (max-width: 768px) {
     body {
@@ -441,6 +502,27 @@ h1 {
         padding: 15px 30px;
         font-size: 1.1em;
     }
+
+    .personality-selection-title {
+        font-size: 1.5em;
+        margin-bottom: 30px;
+    }
+
+    .personality-buttons {
+        gap: 20px;
+    }
+
+    .personality-btn {
+        padding: 25px 20px;
+    }
+
+    .personality-btn-title {
+        font-size: 1.3em;
+    }
+
+    .personality-btn-description {
+        font-size: 0.9em;
+    }
 }
 
 /* Дополнительная оптимизация для очень маленьких экранов */
@@ -471,6 +553,23 @@ h1 {
     .action-btn {
         padding: 15px 25px;
         font-size: 1em;
+    }
+
+    .personality-selection-title {
+        font-size: 1.3em;
+        margin-bottom: 25px;
+    }
+
+    .personality-btn {
+        padding: 20px 15px;
+    }
+
+    .personality-btn-title {
+        font-size: 1.2em;
+    }
+
+    .personality-btn-description {
+        font-size: 0.85em;
     }
 }
 
