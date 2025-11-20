@@ -25,6 +25,7 @@
                     </div>
                     <div class="health-text" id="player-health-text">12 / 12</div>
                 </div>
+                <div class="perk-display" id="player-perk-display"></div>
                 <div class="action-display" id="player-action-display">
                     <img id="player-action-image" src="" alt="">
                 </div>
@@ -44,6 +45,7 @@
                     </div>
                     <div class="health-text" id="enemy-health-text">12 / 12</div>
                 </div>
+                <div class="perk-display" id="enemy-perk-display"></div>
                 <div class="action-display" id="enemy-action-display">
                     <img id="enemy-action-image" src="" alt="">
                 </div>
@@ -61,6 +63,25 @@
                 <button class="personality-btn" id="personality-persistent-btn">
                     <div class="personality-btn-title">Упорный</div>
                     <div class="personality-btn-description">Часто повторяет одинаковые действия</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Экран выбора перка -->
+        <div class="perk-selection-container" id="perk-selection-container">
+            <div class="perk-selection-title">Выберите специальный перк</div>
+            <div class="perk-buttons">
+                <button class="perk-btn" id="perk-double-crit-high-btn">
+                    <div class="perk-btn-title">Удвоенная вероятность крита в голову</div>
+                    <div class="perk-btn-description">Вероятность критического удара в голову удваивается</div>
+                </button>
+                <button class="perk-btn" id="perk-double-crit-mid-btn">
+                    <div class="perk-btn-title">Удвоенная вероятность крита в тело</div>
+                    <div class="perk-btn-description">Вероятность критического удара в тело удваивается</div>
+                </button>
+                <button class="perk-btn" id="perk-double-crit-low-btn">
+                    <div class="perk-btn-title">Удвоенная вероятность крита в ноги</div>
+                    <div class="perk-btn-description">Вероятность критического удара в ноги удваивается</div>
                 </button>
             </div>
         </div>

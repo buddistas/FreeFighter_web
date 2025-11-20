@@ -22,6 +22,28 @@ const PERSONALITY_NAMES = {
     [OPPONENT_PERSONALITY.PERSISTENT]: 'Упорный'
 };
 
+// Перки
+const PERKS = {
+    DOUBLE_CRIT_HIGH: 'double_crit_high',
+    DOUBLE_CRIT_MID: 'double_crit_mid',
+    DOUBLE_CRIT_LOW: 'double_crit_low'
+};
+
+const PERK_NAMES = {
+    [PERKS.DOUBLE_CRIT_HIGH]: 'Удвоенная вероятность крита в голову',
+    [PERKS.DOUBLE_CRIT_MID]: 'Удвоенная вероятность крита в тело',
+    [PERKS.DOUBLE_CRIT_LOW]: 'Удвоенная вероятность крита в ноги'
+};
+
+const PERK_DESCRIPTIONS = {
+    [PERKS.DOUBLE_CRIT_HIGH]: 'Вероятность критического удара в голову удваивается',
+    [PERKS.DOUBLE_CRIT_MID]: 'Вероятность критического удара в тело удваивается',
+    [PERKS.DOUBLE_CRIT_LOW]: 'Вероятность критического удара в ноги удваивается'
+};
+
+const ALL_PERKS = [PERKS.DOUBLE_CRIT_HIGH, PERKS.DOUBLE_CRIT_MID, PERKS.DOUBLE_CRIT_LOW];
+const ENEMY_PERKS_COUNT = 1; // Количество случайных перков для противника
+
 // Пути к изображениям
 const IMAGE_PATHS = {
     attack: {
@@ -49,6 +71,8 @@ class Fighter {
         this.blockSequence = [];
         // Вероятности критического удара по зонам
         this.critChance = { ...DEFAULT_CRIT_CHANCE };
+        // Активный перк
+        this.activePerk = null;
     }
 
     setAttackSequence(sequence) {
@@ -79,6 +103,25 @@ class Fighter {
         this.maxHp = hp;
         this.attackSequence = [];
         this.blockSequence = [];
+        // Сбрасываем перк и вероятности критов
+        this.activePerk = null;
+        this.critChance = { ...DEFAULT_CRIT_CHANCE };
+    }
+
+    applyPerk(perk) {
+        if (!perk) {
+            return; // Не применяем перк, если он null или undefined
+        }
+        
+        this.activePerk = perk;
+        // Удваиваем вероятность крита для выбранной зоны (добавляем +100% к базовой)
+        if (perk === PERKS.DOUBLE_CRIT_HIGH) {
+            this.critChance.high = DEFAULT_CRIT_CHANCE.high * 2; // 10% → 20%
+        } else if (perk === PERKS.DOUBLE_CRIT_MID) {
+            this.critChance.mid = DEFAULT_CRIT_CHANCE.mid * 2; // 5% → 10%
+        } else if (perk === PERKS.DOUBLE_CRIT_LOW) {
+            this.critChance.low = DEFAULT_CRIT_CHANCE.low * 2; // 5% → 10%
+        }
     }
 }
 
@@ -93,6 +136,7 @@ class Game {
         this.selectedActions = [];
         this.isTieRound = false;
         this.opponentPersonality = null; // Характер оппонента
+        this.playerPerk = null; // Выбранный перк игрока
         
         this.initializeUI();
     }
@@ -115,6 +159,16 @@ class Game {
         this.personalitySelectionContainer = document.getElementById('personality-selection-container');
         this.personalityRandomBtn = document.getElementById('personality-random-btn');
         this.personalityPersistentBtn = document.getElementById('personality-persistent-btn');
+        
+        // Экран выбора перка
+        this.perkSelectionContainer = document.getElementById('perk-selection-container');
+        this.perkDoubleCritHighBtn = document.getElementById('perk-double-crit-high-btn');
+        this.perkDoubleCritMidBtn = document.getElementById('perk-double-crit-mid-btn');
+        this.perkDoubleCritLowBtn = document.getElementById('perk-double-crit-low-btn');
+        
+        // Отображение активных перков
+        this.playerPerkDisplay = document.getElementById('player-perk-display');
+        this.enemyPerkDisplay = document.getElementById('enemy-perk-display');
         
         // Полоски здоровья
         this.playerHealthBar = document.getElementById('player-health-bar');
@@ -141,6 +195,11 @@ class Game {
         this.restartBtn.addEventListener('click', () => this.restart());
         this.personalityRandomBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.RANDOM));
         this.personalityPersistentBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.PERSISTENT));
+        
+        // Обработчики выбора перка
+        this.perkDoubleCritHighBtn.addEventListener('click', () => this.selectPerk(PERKS.DOUBLE_CRIT_HIGH));
+        this.perkDoubleCritMidBtn.addEventListener('click', () => this.selectPerk(PERKS.DOUBLE_CRIT_MID));
+        this.perkDoubleCritLowBtn.addEventListener('click', () => this.selectPerk(PERKS.DOUBLE_CRIT_LOW));
         
         // Обработчик изменения размера окна для обновления засечек
         window.addEventListener('resize', () => {
@@ -407,7 +466,18 @@ class Game {
         this.enemy.reset(TIE_ROUND_HP);
         this.roundNumber = 1;
         this.isPlayerAttacking = true;
+        
+        // Восстанавливаем перки после сброса
+        if (this.playerPerk) {
+            this.player.applyPerk(this.playerPerk);
+        }
+        const enemyPerk = this.getRandomEnemyPerk();
+        if (enemyPerk) {
+            this.enemy.applyPerk(enemyPerk);
+        }
+        
         this.updateHealthBars();
+        this.updatePerkDisplays();
         this.startNewRound();
     }
 
@@ -452,14 +522,81 @@ class Game {
     selectPersonality(personality) {
         this.opponentPersonality = personality;
         this.personalitySelectionContainer.style.display = 'none';
-        this.controlsContainer.style.display = 'block';
-        this.currentPhase = 'selection';
         
         // Обновляем метку противника
         this.enemyLabel.textContent = PERSONALITY_NAMES[personality];
         
+        // Показываем экран выбора перка
+        this.showPerkSelection();
+    }
+
+    showPerkSelection() {
+        this.currentPhase = 'perk-selection';
+        this.perkSelectionContainer.style.display = 'block';
+        this.controlsContainer.style.display = 'none';
+        this.restartContainer.style.display = 'none';
+    }
+
+    selectPerk(perk) {
+        this.playerPerk = perk;
+        this.player.applyPerk(perk);
+        
+        // Даем противнику случайный перк
+        const enemyPerk = this.getRandomEnemyPerk();
+        if (enemyPerk) {
+            this.enemy.applyPerk(enemyPerk);
+        }
+        
+        // Скрываем экран выбора перка и показываем игру
+        this.perkSelectionContainer.style.display = 'none';
+        this.controlsContainer.style.display = 'block';
+        this.currentPhase = 'selection';
+        
+        // Обновляем отображение перков
+        this.updatePerkDisplays();
+        
         // Инициализируем игру
         this.updateHealthBars();
+    }
+
+    getRandomEnemyPerk() {
+        // Выбираем случайный перк из доступных
+        const availablePerks = [...ALL_PERKS];
+        
+        if (availablePerks.length === 0) {
+            return null;
+        }
+        
+        // Выбираем ENEMY_PERKS_COUNT случайных перков
+        const selectedPerks = [];
+        for (let i = 0; i < ENEMY_PERKS_COUNT && availablePerks.length > 0; i++) {
+            const randomIndex = Math.floor(Math.random() * availablePerks.length);
+            selectedPerks.push(availablePerks[randomIndex]);
+            availablePerks.splice(randomIndex, 1);
+        }
+        
+        // Возвращаем первый выбранный перк (пока только один)
+        return selectedPerks[0] || null;
+    }
+
+    updatePerkDisplays() {
+        // Обновляем отображение перка игрока
+        if (this.player.activePerk) {
+            this.playerPerkDisplay.textContent = PERK_NAMES[this.player.activePerk];
+            this.playerPerkDisplay.classList.add('active');
+        } else {
+            this.playerPerkDisplay.textContent = '';
+            this.playerPerkDisplay.classList.remove('active');
+        }
+        
+        // Обновляем отображение перка противника
+        if (this.enemy.activePerk) {
+            this.enemyPerkDisplay.textContent = PERK_NAMES[this.enemy.activePerk];
+            this.enemyPerkDisplay.classList.add('active');
+        } else {
+            this.enemyPerkDisplay.textContent = '';
+            this.enemyPerkDisplay.classList.remove('active');
+        }
     }
 
     restart() {
@@ -469,10 +606,12 @@ class Game {
         this.isPlayerAttacking = true;
         this.selectedActions = [];
         this.isTieRound = false;
+        this.playerPerk = null;
         
         this.clearActionDisplays();
         this.updateHealthBars();
         this.selectedList.innerHTML = '';
+        this.updatePerkDisplays();
         
         // Показываем экран выбора характера при рестарте
         this.showPersonalitySelection();

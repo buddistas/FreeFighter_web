@@ -426,6 +426,87 @@ h1 {
     font-style: italic;
 }
 
+/* Экран выбора перка */
+.perk-selection-container {
+    text-align: center;
+    padding: 40px 20px;
+    display: none;
+}
+
+.perk-selection-title {
+    font-size: 1.8em;
+    font-weight: bold;
+    margin-bottom: 40px;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.perk-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    align-items: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.perk-btn {
+    width: 100%;
+    padding: 30px;
+    border: 3px solid #333;
+    border-radius: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.perk-btn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    border-color: #4CAF50;
+}
+
+.perk-btn:active {
+    transform: translateY(-2px);
+}
+
+.perk-btn-title {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.perk-btn-description {
+    font-size: 1em;
+    opacity: 0.9;
+    font-style: italic;
+}
+
+/* Отображение активных перков */
+.perk-display {
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 15px;
+    min-height: 30px;
+    font-size: 0.9em;
+    color: #667eea;
+    font-weight: bold;
+    font-style: italic;
+}
+
+.perk-display.active {
+    color: #4CAF50;
+}
+
+.enemy-section .perk-display.active {
+    color: #f44336;
+}
+
 /* Оптимизация для мобильных устройств */
 @media (max-width: 768px) {
     body {
@@ -523,6 +604,32 @@ h1 {
     .personality-btn-description {
         font-size: 0.9em;
     }
+
+    .perk-selection-title {
+        font-size: 1.5em;
+        margin-bottom: 30px;
+    }
+
+    .perk-buttons {
+        gap: 20px;
+    }
+
+    .perk-btn {
+        padding: 25px 20px;
+    }
+
+    .perk-btn-title {
+        font-size: 1.3em;
+    }
+
+    .perk-btn-description {
+        font-size: 0.9em;
+    }
+
+    .perk-display {
+        font-size: 0.8em;
+        min-height: 25px;
+    }
 }
 
 /* Дополнительная оптимизация для очень маленьких экранов */
@@ -570,6 +677,28 @@ h1 {
 
     .personality-btn-description {
         font-size: 0.85em;
+    }
+
+    .perk-selection-title {
+        font-size: 1.3em;
+        margin-bottom: 25px;
+    }
+
+    .perk-btn {
+        padding: 20px 15px;
+    }
+
+    .perk-btn-title {
+        font-size: 1.2em;
+    }
+
+    .perk-btn-description {
+        font-size: 0.85em;
+    }
+
+    .perk-display {
+        font-size: 0.75em;
+        min-height: 20px;
     }
 }
 
