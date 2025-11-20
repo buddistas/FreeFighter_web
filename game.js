@@ -811,6 +811,9 @@ class Game {
         
         // Инициализируем игру
         this.updateHealthBars();
+        
+        // Активируем кнопки выбора направления
+        this.startNewRound();
     }
 
     getRandomEnemyPerk() {
