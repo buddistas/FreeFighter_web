@@ -79,10 +79,31 @@ const PERKS = {
         'Дополнительное HP в начале боя',
         'В начале боя получаете 13 HP вместо 12',
         null // Этот перк не влияет на криты, а на начальное HP
+    ),
+    CRIT_DEFLECTOR: new Perk(
+        'crit_deflector',
+        'CritDeflector',
+        'Защита от критических ударов',
+        'С шансом 50% превращает критический удар противника в обычный удар',
+        null // Этот перк работает при получении урона, а не при атаке
+    ),
+    LUCKER: new Perk(
+        'lucker',
+        'Lucker?',
+        'Усиление критических ударов',
+        'С шансом 50% удваивает урон от крита',
+        null // Этот перк работает при атаке, а не на конкретную зону
+    ),
+    BLOCK_MASTER: new Perk(
+        'block_master',
+        'BlockMaster',
+        'Мастер защиты',
+        'При успешной защите от всех трех ударов в серии восстанавливает 2 HP',
+        null // Этот перк работает при защите, а не на конкретную зону
     )
 };
 
-const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER, PERKS.TIE_BREAKER, PERKS.HP_BOOST];
+const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER, PERKS.TIE_BREAKER, PERKS.HP_BOOST, PERKS.CRIT_DEFLECTOR, PERKS.LUCKER, PERKS.BLOCK_MASTER];
 const ENEMY_PERKS_COUNT = 1; // Количество случайных перков для противника
 
 // Пути к изображениям
@@ -210,6 +231,9 @@ class Game {
         this.perkLegHunterBtn = document.getElementById('perk-leg-hunter-btn');
         this.perkTieBreakerBtn = document.getElementById('perk-tie-breaker-btn');
         this.perkHPBoostBtn = document.getElementById('perk-hp-boost-btn');
+        this.perkCritDeflectorBtn = document.getElementById('perk-crit-deflector-btn');
+        this.perkLuckerBtn = document.getElementById('perk-lucker-btn');
+        this.perkBlockMasterBtn = document.getElementById('perk-block-master-btn');
         
         // Отображение активных перков
         this.playerPerkDisplay = document.getElementById('player-perk-display');
@@ -247,6 +271,9 @@ class Game {
         this.perkLegHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.LEG_HUNTER));
         this.perkTieBreakerBtn.addEventListener('click', () => this.selectPerk(PERKS.TIE_BREAKER));
         this.perkHPBoostBtn.addEventListener('click', () => this.selectPerk(PERKS.HP_BOOST));
+        this.perkCritDeflectorBtn.addEventListener('click', () => this.selectPerk(PERKS.CRIT_DEFLECTOR));
+        this.perkLuckerBtn.addEventListener('click', () => this.selectPerk(PERKS.LUCKER));
+        this.perkBlockMasterBtn.addEventListener('click', () => this.selectPerk(PERKS.BLOCK_MASTER));
         
         // Обработчик изменения размера окна для обновления засечек
         window.addEventListener('resize', () => {
@@ -358,16 +385,57 @@ class Game {
         const enemyActions = this.isPlayerAttacking ? 
             this.enemy.blockSequence : this.enemy.attackSequence;
         
+        // Отслеживаем блоки для проверки перка BlockMaster
+        let playerBlocksCount = 0;
+        let enemyBlocksCount = 0;
+        
         // Выполняем все 3 действия в фазе
         for (let i = 0; i < ACTIONS_PER_PHASE; i++) {
             const playerAction = playerActions[i];
             const enemyAction = enemyActions[i];
             
-            await this.executeAction(playerAction, enemyAction, i);
+            const result = await this.executeAction(playerAction, enemyAction, i);
+            
+            // Подсчитываем блоки
+            if (result.playerBlocked) playerBlocksCount++;
+            if (result.enemyBlocked) enemyBlocksCount++;
             
             // Задержка между действиями (кроме последнего)
             if (i < ACTIONS_PER_PHASE - 1) {
                 await this.delay(DELAY_BETWEEN_ACTIONS);
+            }
+        }
+        
+        // Проверяем перк BlockMaster в конце фазы
+        if (this.isPlayerAttacking) {
+            // Игрок атакует, противник защищается
+            if (enemyBlocksCount === ACTIONS_PER_PHASE) {
+                // Противник заблокировал все удары
+                const hasBlockMaster = this.enemy.activePerk && this.enemy.activePerk.id === 'block_master';
+                if (hasBlockMaster) {
+                    const oldHp = this.enemy.hp;
+                    this.enemy.hp = Math.min(this.enemy.maxHp, this.enemy.hp + 2);
+                    if (this.enemy.hp > oldHp) {
+                        this.showActionText('BlockMaster +2HP', 'hit');
+                        this.updateHealthBars();
+                        await this.delay(1500); // Показываем сообщение
+                    }
+                }
+            }
+        } else {
+            // Противник атакует, игрок защищается
+            if (playerBlocksCount === ACTIONS_PER_PHASE) {
+                // Игрок заблокировал все удары
+                const hasBlockMaster = this.player.activePerk && this.player.activePerk.id === 'block_master';
+                if (hasBlockMaster) {
+                    const oldHp = this.player.hp;
+                    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 2);
+                    if (this.player.hp > oldHp) {
+                        this.showActionText('BlockMaster +2HP', 'hit');
+                        this.updateHealthBars();
+                        await this.delay(1500); // Показываем сообщение
+                    }
+                }
             }
         }
         
@@ -394,6 +462,8 @@ class Game {
         // Ждем завершения fade-out перед показом новых элементов
         await this.delay(400);
         
+        let result = { playerBlocked: false, enemyBlocked: false };
+        
         if (this.isPlayerAttacking) {
             // Игрок атакует, противник защищается
             this.showAction(this.playerActionImage, 'attack', playerAction);
@@ -407,8 +477,24 @@ class Game {
                 // Проверяем критический удар
                 const isCritical = this.player.checkCriticalHit(playerAction);
                 if (isCritical) {
-                    damage *= 2; // Удваиваем урон при критическом ударе
-                    this.showActionText('CRITICAL HIT!', 'hit critical');
+                    // Проверяем, есть ли у противника перк CritDeflector
+                    const hasCritDeflector = this.enemy.activePerk && this.enemy.activePerk.id === 'crit_deflector';
+                    if (hasCritDeflector && Math.random() < 0.5) {
+                        // Перк сработал - крит превращается в обычный удар
+                        this.showActionText('CRIT DEFLECTED!', 'hit critical');
+                    } else {
+                        // Крит прошел, проверяем перк Lucker у атакующего
+                        const hasLucker = this.player.activePerk && this.player.activePerk.id === 'lucker';
+                        if (hasLucker && Math.random() < 0.5) {
+                            // Перк Lucker сработал - учетверяем урон
+                            damage *= 4;
+                            this.showActionText('LUCKY PUNCH!', 'hit critical');
+                        } else {
+                            // Обычный крит
+                            damage *= 2; // Удваиваем урон при критическом ударе
+                            this.showActionText('CRITICAL HIT!', 'hit critical');
+                        }
+                    }
                 } else {
                     this.showActionText('HIT', 'hit');
                 }
@@ -417,6 +503,7 @@ class Game {
             } else {
                 // Блок!
                 this.showActionText('BLOCK!', 'block');
+                result.enemyBlocked = true; // Противник заблокировал
             }
         } else {
             // Противник атакует, игрок защищается
@@ -431,8 +518,24 @@ class Game {
                 // Проверяем критический удар
                 const isCritical = this.enemy.checkCriticalHit(enemyAction);
                 if (isCritical) {
-                    damage *= 2; // Удваиваем урон при критическом ударе
-                    this.showActionText('CRITICAL HIT!', 'hit critical');
+                    // Проверяем, есть ли у игрока перк CritDeflector
+                    const hasCritDeflector = this.player.activePerk && this.player.activePerk.id === 'crit_deflector';
+                    if (hasCritDeflector && Math.random() < 0.5) {
+                        // Перк сработал - крит превращается в обычный удар
+                        this.showActionText('CRIT DEFLECTED!', 'hit critical');
+                    } else {
+                        // Крит прошел, проверяем перк Lucker у атакующего
+                        const hasLucker = this.enemy.activePerk && this.enemy.activePerk.id === 'lucker';
+                        if (hasLucker && Math.random() < 0.5) {
+                            // Перк Lucker сработал - учетверяем урон
+                            damage *= 4;
+                            this.showActionText('LUCKY PUNCH!', 'hit critical');
+                        } else {
+                            // Обычный крит
+                            damage *= 2; // Удваиваем урон при критическом ударе
+                            this.showActionText('CRITICAL HIT!', 'hit critical');
+                        }
+                    }
                 } else {
                     this.showActionText('HIT', 'hit');
                 }
@@ -441,10 +544,12 @@ class Game {
             } else {
                 // Блок!
                 this.showActionText('BLOCK!', 'block');
+                result.playerBlocked = true; // Игрок заблокировал
             }
         }
         
         this.updateHealthBars();
+        return result;
     }
 
     showAction(imgElement, type, action) {
@@ -666,6 +771,24 @@ class Game {
         const hpBoostDesc = this.perkHPBoostBtn.querySelector('.perk-btn-description');
         if (hpBoostTitle) hpBoostTitle.textContent = PERKS.HP_BOOST.name;
         if (hpBoostDesc) hpBoostDesc.textContent = PERKS.HP_BOOST.fullName;
+        
+        // CritDeflector
+        const critDeflectorTitle = this.perkCritDeflectorBtn.querySelector('.perk-btn-title');
+        const critDeflectorDesc = this.perkCritDeflectorBtn.querySelector('.perk-btn-description');
+        if (critDeflectorTitle) critDeflectorTitle.textContent = PERKS.CRIT_DEFLECTOR.name;
+        if (critDeflectorDesc) critDeflectorDesc.textContent = PERKS.CRIT_DEFLECTOR.fullName;
+        
+        // Lucker
+        const luckerTitle = this.perkLuckerBtn.querySelector('.perk-btn-title');
+        const luckerDesc = this.perkLuckerBtn.querySelector('.perk-btn-description');
+        if (luckerTitle) luckerTitle.textContent = PERKS.LUCKER.name;
+        if (luckerDesc) luckerDesc.textContent = PERKS.LUCKER.fullName;
+        
+        // BlockMaster
+        const blockMasterTitle = this.perkBlockMasterBtn.querySelector('.perk-btn-title');
+        const blockMasterDesc = this.perkBlockMasterBtn.querySelector('.perk-btn-description');
+        if (blockMasterTitle) blockMasterTitle.textContent = PERKS.BLOCK_MASTER.name;
+        if (blockMasterDesc) blockMasterDesc.textContent = PERKS.BLOCK_MASTER.fullName;
     }
 
     selectPerk(perk) {
