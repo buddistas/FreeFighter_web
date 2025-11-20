@@ -65,10 +65,24 @@ const PERKS = {
         'Удвоенная вероятность крита в ноги',
         'Вероятность критического удара в ноги удваивается',
         'low'
+    ),
+    TIE_BREAKER: new Perk(
+        'tie_breaker',
+        'TieBreaker',
+        'Дополнительное HP при ничьей',
+        'При ничьей получаете 3 HP вместо 2',
+        null // Этот перк не влияет на криты, а на HP при ничьей
+    ),
+    HP_BOOST: new Perk(
+        'hp_boost',
+        'HPBoost',
+        'Дополнительное HP в начале боя',
+        'В начале боя получаете 13 HP вместо 12',
+        null // Этот перк не влияет на криты, а на начальное HP
     )
 };
 
-const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER];
+const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER, PERKS.TIE_BREAKER, PERKS.HP_BOOST];
 const ENEMY_PERKS_COUNT = 1; // Количество случайных перков для противника
 
 // Пути к изображениям
@@ -141,8 +155,15 @@ class Fighter {
         }
         
         this.activePerk = perk;
-        // Применяем эффект перка
-        perk.apply(this);
+        
+        // Специальная обработка для HP_BOOST - увеличиваем HP
+        if (perk.id === 'hp_boost') {
+            this.maxHp += 1;
+            this.hp += 1;
+        } else {
+            // Применяем стандартный эффект перка (для критов)
+            perk.apply(this);
+        }
     }
 }
 
@@ -158,6 +179,7 @@ class Game {
         this.isTieRound = false;
         this.opponentPersonality = null; // Характер оппонента
         this.playerPerk = null; // Выбранный перк игрока
+        this.enemyPerk = null; // Перк противника
         
         this.initializeUI();
     }
@@ -186,6 +208,8 @@ class Game {
         this.perkHeadHunterBtn = document.getElementById('perk-head-hunter-btn');
         this.perkBodyHunterBtn = document.getElementById('perk-body-hunter-btn');
         this.perkLegHunterBtn = document.getElementById('perk-leg-hunter-btn');
+        this.perkTieBreakerBtn = document.getElementById('perk-tie-breaker-btn');
+        this.perkHPBoostBtn = document.getElementById('perk-hp-boost-btn');
         
         // Отображение активных перков
         this.playerPerkDisplay = document.getElementById('player-perk-display');
@@ -221,6 +245,8 @@ class Game {
         this.perkHeadHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.HEAD_HUNTER));
         this.perkBodyHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.BODY_HUNTER));
         this.perkLegHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.LEG_HUNTER));
+        this.perkTieBreakerBtn.addEventListener('click', () => this.selectPerk(PERKS.TIE_BREAKER));
+        this.perkHPBoostBtn.addEventListener('click', () => this.selectPerk(PERKS.HP_BOOST));
         
         // Обработчик изменения размера окна для обновления засечек
         window.addEventListener('resize', () => {
@@ -483,8 +509,13 @@ class Game {
 
     startTieRound() {
         this.isTieRound = true;
-        this.player.reset(TIE_ROUND_HP);
-        this.enemy.reset(TIE_ROUND_HP);
+        
+        // Определяем HP для ничьей: 3 если есть TieBreaker, иначе 2
+        const playerTieHP = (this.playerPerk && this.playerPerk.id === 'tie_breaker') ? 3 : TIE_ROUND_HP;
+        const enemyTieHP = (this.enemyPerk && this.enemyPerk.id === 'tie_breaker') ? 3 : TIE_ROUND_HP;
+        
+        this.player.reset(playerTieHP);
+        this.enemy.reset(enemyTieHP);
         this.roundNumber = 1;
         this.isPlayerAttacking = true;
         
@@ -492,9 +523,8 @@ class Game {
         if (this.playerPerk) {
             this.player.applyPerk(this.playerPerk);
         }
-        const enemyPerk = this.getRandomEnemyPerk();
-        if (enemyPerk) {
-            this.enemy.applyPerk(enemyPerk);
+        if (this.enemyPerk) {
+            this.enemy.applyPerk(this.enemyPerk);
         }
         
         this.updateHealthBars();
@@ -579,6 +609,18 @@ class Game {
         const legHunterDesc = this.perkLegHunterBtn.querySelector('.perk-btn-description');
         if (legHunterTitle) legHunterTitle.textContent = PERKS.LEG_HUNTER.name;
         if (legHunterDesc) legHunterDesc.textContent = PERKS.LEG_HUNTER.fullName;
+        
+        // TieBreaker
+        const tieBreakerTitle = this.perkTieBreakerBtn.querySelector('.perk-btn-title');
+        const tieBreakerDesc = this.perkTieBreakerBtn.querySelector('.perk-btn-description');
+        if (tieBreakerTitle) tieBreakerTitle.textContent = PERKS.TIE_BREAKER.name;
+        if (tieBreakerDesc) tieBreakerDesc.textContent = PERKS.TIE_BREAKER.fullName;
+        
+        // HPBoost
+        const hpBoostTitle = this.perkHPBoostBtn.querySelector('.perk-btn-title');
+        const hpBoostDesc = this.perkHPBoostBtn.querySelector('.perk-btn-description');
+        if (hpBoostTitle) hpBoostTitle.textContent = PERKS.HP_BOOST.name;
+        if (hpBoostDesc) hpBoostDesc.textContent = PERKS.HP_BOOST.fullName;
     }
 
     selectPerk(perk) {
@@ -586,9 +628,9 @@ class Game {
         this.player.applyPerk(perk);
         
         // Даем противнику случайный перк
-        const enemyPerk = this.getRandomEnemyPerk();
-        if (enemyPerk) {
-            this.enemy.applyPerk(enemyPerk);
+        this.enemyPerk = this.getRandomEnemyPerk();
+        if (this.enemyPerk) {
+            this.enemy.applyPerk(this.enemyPerk);
         }
         
         // Скрываем экран выбора перка и показываем игру
@@ -644,13 +686,15 @@ class Game {
     }
 
     restart() {
-        this.player.reset(this.player.maxHp);
-        this.enemy.reset(this.enemy.maxHp);
+        // Сбрасываем к базовому HP (12), так как перки будут выбраны заново
+        this.player.reset(12);
+        this.enemy.reset(12);
         this.roundNumber = 1;
         this.isPlayerAttacking = true;
         this.selectedActions = [];
         this.isTieRound = false;
         this.playerPerk = null;
+        this.enemyPerk = null;
         
         this.clearActionDisplays();
         this.updateHealthBars();
