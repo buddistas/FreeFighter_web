@@ -253,6 +253,9 @@ class Game {
             this.updateHealthBars();
         });
         
+        // Инициализируем засечки на HP барах
+        this.updateHealthBars();
+        
         // Показываем экран выбора характера при старте
         this.showPersonalitySelection();
     }
@@ -469,6 +472,10 @@ class Game {
     }
 
     updateHealthBars() {
+        // Обновляем засечки на основе максимального HP
+        this.updateHealthBarNotches(this.playerHealthBar, this.player.maxHp);
+        this.updateHealthBarNotches(this.enemyHealthBar, this.enemy.maxHp);
+        
         // Вычисляем процент здоровья
         const playerPercent = (this.player.hp / this.player.maxHp) * 100;
         const enemyPercent = (this.enemy.hp / this.enemy.maxHp) * 100;
@@ -487,6 +494,44 @@ class Game {
         
         this.enemyHealthFill.style.width = `${enemyPercentRounded}%`;
         this.enemyHealthText.textContent = `${this.enemy.hp} / ${this.enemy.maxHp}`;
+    }
+
+    updateHealthBarNotches(healthBarElement, maxHp) {
+        // Количество засечек = maxHp - 1
+        const notchCount = maxHp - 1;
+        
+        if (notchCount <= 0) {
+            // Если засечек нет, убираем градиент
+            healthBarElement.style.setProperty('--health-bar-notches', 'none');
+            return;
+        }
+        
+        // Создаем массив для градиента
+        const gradientParts = ['transparent 0%'];
+        
+        // Для каждой засечки создаем позицию
+        for (let i = 1; i <= notchCount; i++) {
+            // Позиция засечки: i / maxHp * 100%
+            const position = (i / maxHp) * 100;
+            const positionStr = position.toFixed(6);
+            
+            // Добавляем засечку: прозрачный до засечки, черный на засечке, прозрачный после
+            gradientParts.push(
+                `transparent calc(${positionStr}% - 0.5px)`,
+                `#000 calc(${positionStr}% - 0.5px)`,
+                `#000 calc(${positionStr}% + 0.5px)`,
+                `transparent calc(${positionStr}% + 0.5px)`
+            );
+        }
+        
+        // Завершаем градиент
+        gradientParts.push('transparent 100%');
+        
+        // Создаем строку градиента
+        const gradientString = `linear-gradient(to right, ${gradientParts.join(', ')})`;
+        
+        // Устанавливаем CSS переменную
+        healthBarElement.style.setProperty('--health-bar-notches', gradientString);
     }
 
     checkGameEnd() {
