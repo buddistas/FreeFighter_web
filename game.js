@@ -4,6 +4,13 @@ const ACTIONS_PER_PHASE = 3;
 const DELAY_BETWEEN_ACTIONS = 1000; // 1 секунда
 const DELAY_BETWEEN_PHASES = 2000; // 2 секунды
 
+// Вероятности критического удара по умолчанию
+const DEFAULT_CRIT_CHANCE = {
+    high: 0.10,  // 10% в голову
+    mid: 0.05,   // 5% в тело
+    low: 0.05    // 5% в ноги
+};
+
 // Характеры оппонента
 const OPPONENT_PERSONALITY = {
     RANDOM: 'random',
@@ -40,6 +47,8 @@ class Fighter {
         this.isPlayer = isPlayer;
         this.attackSequence = [];
         this.blockSequence = [];
+        // Вероятности критического удара по зонам
+        this.critChance = { ...DEFAULT_CRIT_CHANCE };
     }
 
     setAttackSequence(sequence) {
@@ -57,6 +66,12 @@ class Fighter {
     calculateDamage(attackerDamage) {
         // Урон = урон атакующего - защита защищающегося
         return Math.max(0, attackerDamage - this.defense);
+    }
+
+    checkCriticalHit(action) {
+        // Проверяем вероятность критического удара для данной зоны
+        const chance = this.critChance[action] || 0;
+        return Math.random() < chance;
     }
 
     reset(hp) {
@@ -278,9 +293,18 @@ class Game {
             // Проверяем попадание
             if (playerAction !== enemyAction) {
                 // Попадание! Урон = урон атакующего - защита защищающегося
-                const damage = this.enemy.calculateDamage(this.player.damage);
+                let damage = this.enemy.calculateDamage(this.player.damage);
+                
+                // Проверяем критический удар
+                const isCritical = this.player.checkCriticalHit(playerAction);
+                if (isCritical) {
+                    damage *= 2; // Удваиваем урон при критическом ударе
+                    this.showActionText('CRITICAL HIT!', 'hit critical');
+                } else {
+                    this.showActionText('HIT', 'hit');
+                }
+                
                 this.enemy.takeDamage(damage);
-                this.showActionText('HIT', 'hit');
             } else {
                 // Блок!
                 this.showActionText('BLOCK!', 'block');
@@ -293,9 +317,18 @@ class Game {
             // Проверяем попадание
             if (enemyAction !== playerAction) {
                 // Попадание! Урон = урон атакующего - защита защищающегося
-                const damage = this.player.calculateDamage(this.enemy.damage);
+                let damage = this.player.calculateDamage(this.enemy.damage);
+                
+                // Проверяем критический удар
+                const isCritical = this.enemy.checkCriticalHit(enemyAction);
+                if (isCritical) {
+                    damage *= 2; // Удваиваем урон при критическом ударе
+                    this.showActionText('CRITICAL HIT!', 'hit critical');
+                } else {
+                    this.showActionText('HIT', 'hit');
+                }
+                
                 this.player.takeDamage(damage);
-                this.showActionText('HIT', 'hit');
             } else {
                 // Блок!
                 this.showActionText('BLOCK!', 'block');
@@ -326,7 +359,7 @@ class Game {
         this.enemyActionImage.classList.remove('visible');
         
         // Плавно скрываем надпись
-        this.actionResultText.classList.remove('hit', 'block');
+        this.actionResultText.classList.remove('hit', 'block', 'critical');
     }
 
     updateHealthBars() {
