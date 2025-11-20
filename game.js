@@ -79,8 +79,10 @@ class Game {
         this.gameResult = document.getElementById('game-result');
         
         // Полоски здоровья
+        this.playerHealthBar = document.getElementById('player-health-bar');
         this.playerHealthFill = document.getElementById('player-health-fill');
         this.playerHealthText = document.getElementById('player-health-text');
+        this.enemyHealthBar = document.getElementById('enemy-health-bar');
         this.enemyHealthFill = document.getElementById('enemy-health-fill');
         this.enemyHealthText = document.getElementById('enemy-health-text');
         
@@ -96,6 +98,11 @@ class Game {
         this.btnMid.addEventListener('click', () => this.selectAction('mid'));
         this.btnLow.addEventListener('click', () => this.selectAction('low'));
         this.restartBtn.addEventListener('click', () => this.restart());
+        
+        // Обработчик изменения размера окна для обновления засечек
+        window.addEventListener('resize', () => {
+            this.updateHealthBars();
+        });
         
         this.updateHealthBars();
     }
@@ -261,13 +268,23 @@ class Game {
     }
 
     updateHealthBars() {
+        // Вычисляем процент здоровья
         const playerPercent = (this.player.hp / this.player.maxHp) * 100;
         const enemyPercent = (this.enemy.hp / this.enemy.maxHp) * 100;
         
-        this.playerHealthFill.style.width = `${playerPercent}%`;
+        // Округляем до целого числа делений для точного попадания на засечки
+        const playerDivisions = Math.floor(this.player.hp);
+        const enemyDivisions = Math.floor(this.enemy.hp);
+        
+        // Вычисляем процент с учетом целого числа делений
+        const playerPercentRounded = (playerDivisions / this.player.maxHp) * 100;
+        const enemyPercentRounded = (enemyDivisions / this.enemy.maxHp) * 100;
+        
+        // Устанавливаем ширину заполненной части (останавливается точно на засечках)
+        this.playerHealthFill.style.width = `${playerPercentRounded}%`;
         this.playerHealthText.textContent = `${this.player.hp} / ${this.player.maxHp}`;
         
-        this.enemyHealthFill.style.width = `${enemyPercent}%`;
+        this.enemyHealthFill.style.width = `${enemyPercentRounded}%`;
         this.enemyHealthText.textContent = `${this.enemy.hp} / ${this.enemy.maxHp}`;
     }
 

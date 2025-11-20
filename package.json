@@ -4,7 +4,9 @@
   "description": "FreeFighter - браузерная игра-симулятор боя для Android",
   "main": "index.html",
   "scripts": {
-    "dev": "npx http-server www -p 8080 -c-1",
+    "dev": "npm run copy-assets && npx http-server www -p 8080 -c-1",
+    "dev:watch": "npm run copy-assets && npx concurrently \"npm run watch\" \"npx http-server www -p 8080 -c-1\"",
+    "watch": "chokidar \"index.html\" \"game.js\" \"styles.css\" \"manifest.json\" \"pics/**/*\" \"icons/**/*\" -c \"npm run copy-assets\"",
     "sync": "npx cap sync",
     "sync:android": "npx cap sync android",
     "open:android": "npx cap open android",
@@ -26,6 +28,8 @@
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",
     "canvas": "^3.2.0",
+    "chokidar-cli": "^3.0.0",
+    "concurrently": "^9.2.1",
     "http-server": "^14.1.1"
   }
 }
