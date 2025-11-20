@@ -1,5 +1,4 @@
 // Константы игры
-const MAX_HP = 12;
 const TIE_ROUND_HP = 2;
 const ACTIONS_PER_PHASE = 3;
 const DELAY_BETWEEN_ACTIONS = 1000; // 1 секунда
@@ -32,10 +31,12 @@ const IMAGE_PATHS = {
 
 // Класс бойца
 class Fighter {
-    constructor(name, isPlayer = false) {
+    constructor(name, isPlayer = false, maxHp = 12, damage = 1, defense = 0) {
         this.name = name;
-        this.hp = MAX_HP;
-        this.maxHp = MAX_HP;
+        this.maxHp = maxHp;
+        this.hp = maxHp;
+        this.damage = damage;
+        this.defense = defense;
         this.isPlayer = isPlayer;
         this.attackSequence = [];
         this.blockSequence = [];
@@ -53,7 +54,12 @@ class Fighter {
         this.hp = Math.max(0, this.hp - amount);
     }
 
-    reset(hp = MAX_HP) {
+    calculateDamage(attackerDamage) {
+        // Урон = урон атакующего - защита защищающегося
+        return Math.max(0, attackerDamage - this.defense);
+    }
+
+    reset(hp) {
         this.hp = hp;
         this.maxHp = hp;
         this.attackSequence = [];
@@ -271,8 +277,9 @@ class Game {
             
             // Проверяем попадание
             if (playerAction !== enemyAction) {
-                // Попадание!
-                this.enemy.takeDamage(1);
+                // Попадание! Урон = урон атакующего - защита защищающегося
+                const damage = this.enemy.calculateDamage(this.player.damage);
+                this.enemy.takeDamage(damage);
                 this.showActionText('HIT', 'hit');
             } else {
                 // Блок!
@@ -285,8 +292,9 @@ class Game {
             
             // Проверяем попадание
             if (enemyAction !== playerAction) {
-                // Попадание!
-                this.player.takeDamage(1);
+                // Попадание! Урон = урон атакующего - защита защищающегося
+                const damage = this.player.calculateDamage(this.enemy.damage);
+                this.player.takeDamage(damage);
                 this.showActionText('HIT', 'hit');
             } else {
                 // Блок!
@@ -422,8 +430,8 @@ class Game {
     }
 
     restart() {
-        this.player.reset(MAX_HP);
-        this.enemy.reset(MAX_HP);
+        this.player.reset(this.player.maxHp);
+        this.enemy.reset(this.enemy.maxHp);
         this.roundNumber = 1;
         this.isPlayerAttacking = true;
         this.selectedActions = [];
