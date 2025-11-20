@@ -1,5 +1,5 @@
 // Константы игры
-const MAX_HP = 20;
+const MAX_HP = 12;
 const TIE_ROUND_HP = 2;
 const ACTIONS_PER_PHASE = 3;
 const DELAY_BETWEEN_ACTIONS = 1000; // 1 секунда

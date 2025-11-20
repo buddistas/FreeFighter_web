@@ -21,3 +21,21 @@ node_modules/
 dist/
 build/
 
+# Capacitor
+android/
+ios/
+www/
+.capacitor/
+
+# Build artifacts
+*.log
+.DS_Store
+Thumbs.db
+
+# Generated icons (SVG можно оставить, но PNG можно исключить если нужно)
+# icons/*.png
+
+# Test coverage
+coverage/
+.nyc_output/
+
