@@ -69,9 +69,9 @@ const PERKS = {
     TIE_BREAKER: new Perk(
         'tie_breaker',
         'TieBreaker',
-        'Дополнительное HP при ничьей',
-        'При ничьей получаете 3 HP вместо 2',
-        null // Этот перк не влияет на криты, а на HP при ничьей
+        'Дополнительное HP в дополнительных раундах',
+        'В дополнительных раундах получаете 4 HP вместо 2',
+        null // Этот перк не влияет на криты, а на HP в дополнительных раундах
     ),
     HP_BOOST: new Perk(
         'hp_boost',
@@ -98,12 +98,19 @@ const PERKS = {
         'block_master',
         'BlockMaster',
         'Мастер защиты',
-        'При успешной защите от всех трех ударов в серии восстанавливает 2 HP',
+        'При успешном блокировании двух ударов подряд восстанавливает 1 HP',
         null // Этот перк работает при защите, а не на конкретную зону
+    ),
+    FINISH_HIM: new Perk(
+        'finish_him',
+        'FinishHim',
+        'Добивание',
+        'Если у противника на конец раунда осталось 1 HP, уменьшает его HP на 1',
+        null // Этот перк работает в конце раунда, не в дополнительных раундах
     )
 };
 
-const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER, PERKS.TIE_BREAKER, PERKS.HP_BOOST, PERKS.CRIT_DEFLECTOR, PERKS.LUCKER, PERKS.BLOCK_MASTER];
+const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER, PERKS.TIE_BREAKER, PERKS.HP_BOOST, PERKS.CRIT_DEFLECTOR, PERKS.LUCKER, PERKS.BLOCK_MASTER, PERKS.FINISH_HIM];
 const ENEMY_PERKS_COUNT = 1; // Количество случайных перков для противника
 
 // Пути к изображениям
@@ -234,6 +241,7 @@ class Game {
         this.perkCritDeflectorBtn = document.getElementById('perk-crit-deflector-btn');
         this.perkLuckerBtn = document.getElementById('perk-lucker-btn');
         this.perkBlockMasterBtn = document.getElementById('perk-block-master-btn');
+        this.perkFinishHimBtn = document.getElementById('perk-finish-him-btn');
         
         // Отображение активных перков
         this.playerPerkDisplay = document.getElementById('player-perk-display');
@@ -274,6 +282,7 @@ class Game {
         this.perkCritDeflectorBtn.addEventListener('click', () => this.selectPerk(PERKS.CRIT_DEFLECTOR));
         this.perkLuckerBtn.addEventListener('click', () => this.selectPerk(PERKS.LUCKER));
         this.perkBlockMasterBtn.addEventListener('click', () => this.selectPerk(PERKS.BLOCK_MASTER));
+        this.perkFinishHimBtn.addEventListener('click', () => this.selectPerk(PERKS.FINISH_HIM));
         
         // Обработчик изменения размера окна для обновления засечек
         window.addEventListener('resize', () => {
@@ -385,9 +394,9 @@ class Game {
         const enemyActions = this.isPlayerAttacking ? 
             this.enemy.blockSequence : this.enemy.attackSequence;
         
-        // Отслеживаем блоки для проверки перка BlockMaster
-        let playerBlocksCount = 0;
-        let enemyBlocksCount = 0;
+        // Отслеживаем последовательные блоки для проверки перка BlockMaster
+        let playerConsecutiveBlocks = 0;
+        let enemyConsecutiveBlocks = 0;
         
         // Выполняем все 3 действия в фазе
         for (let i = 0; i < ACTIONS_PER_PHASE; i++) {
@@ -396,46 +405,54 @@ class Game {
             
             const result = await this.executeAction(playerAction, enemyAction, i);
             
-            // Подсчитываем блоки
-            if (result.playerBlocked) playerBlocksCount++;
-            if (result.enemyBlocked) enemyBlocksCount++;
+            // Отслеживаем последовательные блоки для BlockMaster
+            if (this.isPlayerAttacking) {
+                // Игрок атакует, противник защищается
+                if (result.enemyBlocked) {
+                    enemyConsecutiveBlocks++;
+                    // Проверяем перк BlockMaster при двух блоках подряд
+                    if (enemyConsecutiveBlocks === 2) {
+                        const hasBlockMaster = this.enemy.activePerk && this.enemy.activePerk.id === 'block_master';
+                        if (hasBlockMaster) {
+                            const oldHp = this.enemy.hp;
+                            this.enemy.hp = Math.min(this.enemy.maxHp, this.enemy.hp + 1);
+                            if (this.enemy.hp > oldHp) {
+                                this.showActionText('BlockMaster +1HP', 'hit');
+                                this.updateHealthBars();
+                                await this.delay(1500); // Показываем сообщение
+                            }
+                        }
+                    }
+                } else {
+                    // Попадание - сбрасываем счетчик
+                    enemyConsecutiveBlocks = 0;
+                }
+            } else {
+                // Противник атакует, игрок защищается
+                if (result.playerBlocked) {
+                    playerConsecutiveBlocks++;
+                    // Проверяем перк BlockMaster при двух блоках подряд
+                    if (playerConsecutiveBlocks === 2) {
+                        const hasBlockMaster = this.player.activePerk && this.player.activePerk.id === 'block_master';
+                        if (hasBlockMaster) {
+                            const oldHp = this.player.hp;
+                            this.player.hp = Math.min(this.player.maxHp, this.player.hp + 1);
+                            if (this.player.hp > oldHp) {
+                                this.showActionText('BlockMaster +1HP', 'hit');
+                                this.updateHealthBars();
+                                await this.delay(1500); // Показываем сообщение
+                            }
+                        }
+                    }
+                } else {
+                    // Попадание - сбрасываем счетчик
+                    playerConsecutiveBlocks = 0;
+                }
+            }
             
             // Задержка между действиями (кроме последнего)
             if (i < ACTIONS_PER_PHASE - 1) {
                 await this.delay(DELAY_BETWEEN_ACTIONS);
-            }
-        }
-        
-        // Проверяем перк BlockMaster в конце фазы
-        if (this.isPlayerAttacking) {
-            // Игрок атакует, противник защищается
-            if (enemyBlocksCount === ACTIONS_PER_PHASE) {
-                // Противник заблокировал все удары
-                const hasBlockMaster = this.enemy.activePerk && this.enemy.activePerk.id === 'block_master';
-                if (hasBlockMaster) {
-                    const oldHp = this.enemy.hp;
-                    this.enemy.hp = Math.min(this.enemy.maxHp, this.enemy.hp + 2);
-                    if (this.enemy.hp > oldHp) {
-                        this.showActionText('BlockMaster +2HP', 'hit');
-                        this.updateHealthBars();
-                        await this.delay(1500); // Показываем сообщение
-                    }
-                }
-            }
-        } else {
-            // Противник атакует, игрок защищается
-            if (playerBlocksCount === ACTIONS_PER_PHASE) {
-                // Игрок заблокировал все удары
-                const hasBlockMaster = this.player.activePerk && this.player.activePerk.id === 'block_master';
-                if (hasBlockMaster) {
-                    const oldHp = this.player.hp;
-                    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 2);
-                    if (this.player.hp > oldHp) {
-                        this.showActionText('BlockMaster +2HP', 'hit');
-                        this.updateHealthBars();
-                        await this.delay(1500); // Показываем сообщение
-                    }
-                }
             }
         }
         
@@ -447,7 +464,27 @@ class Game {
         
         // Проверяем окончание раунда (после второй фазы isPlayerAttacking становится true)
         if (this.isPlayerAttacking) {
-            // Раунд завершен (обе фазы выполнены), проверяем условия победы
+            // Раунд завершен (обе фазы выполнены), проверяем перк FinishHim
+            // FinishHim не работает в дополнительных раундах
+            if (!this.isTieRound) {
+                // Проверяем перк FinishHim для игрока
+                const hasFinishHimPlayer = this.player.activePerk && this.player.activePerk.id === 'finish_him';
+                if (hasFinishHimPlayer && this.enemy.hp === 1) {
+                    this.enemy.takeDamage(1);
+                    this.showActionText('FinishHim!', 'hit critical');
+                    this.updateHealthBars();
+                    await this.delay(1500);
+                }
+                // Проверяем перк FinishHim для противника
+                const hasFinishHimEnemy = this.enemy.activePerk && this.enemy.activePerk.id === 'finish_him';
+                if (hasFinishHimEnemy && this.player.hp === 1) {
+                    this.player.takeDamage(1);
+                    this.showActionText('FinishHim!', 'hit critical');
+                    this.updateHealthBars();
+                    await this.delay(1500);
+                }
+            }
+            // Проверяем условия победы
             this.checkGameEnd();
         } else {
             // Нужна вторая фаза раунда, запрашиваем выбор
@@ -660,9 +697,9 @@ class Game {
     startTieRound() {
         this.isTieRound = true;
         
-        // Определяем HP для ничьей: 3 если есть TieBreaker, иначе 2
-        const playerTieHP = (this.playerPerk && this.playerPerk.id === 'tie_breaker') ? 3 : TIE_ROUND_HP;
-        const enemyTieHP = (this.enemyPerk && this.enemyPerk.id === 'tie_breaker') ? 3 : TIE_ROUND_HP;
+        // Определяем HP для дополнительного раунда: 4 если есть TieBreaker, иначе 2
+        const playerTieHP = (this.playerPerk && this.playerPerk.id === 'tie_breaker') ? TIE_ROUND_HP + 2 : TIE_ROUND_HP;
+        const enemyTieHP = (this.enemyPerk && this.enemyPerk.id === 'tie_breaker') ? TIE_ROUND_HP + 2 : TIE_ROUND_HP;
         
         this.player.reset(playerTieHP);
         this.enemy.reset(enemyTieHP);
@@ -789,6 +826,12 @@ class Game {
         const blockMasterDesc = this.perkBlockMasterBtn.querySelector('.perk-btn-description');
         if (blockMasterTitle) blockMasterTitle.textContent = PERKS.BLOCK_MASTER.name;
         if (blockMasterDesc) blockMasterDesc.textContent = PERKS.BLOCK_MASTER.fullName;
+        
+        // FinishHim
+        const finishHimTitle = this.perkFinishHimBtn.querySelector('.perk-btn-title');
+        const finishHimDesc = this.perkFinishHimBtn.querySelector('.perk-btn-description');
+        if (finishHimTitle) finishHimTitle.textContent = PERKS.FINISH_HIM.name;
+        if (finishHimDesc) finishHimDesc.textContent = PERKS.FINISH_HIM.fullName;
     }
 
     selectPerk(perk) {
