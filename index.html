@@ -13,9 +13,7 @@
 </head>
 <body>
     <div class="game-container">
-        <h1>FreeFighter</h1>
-        
-        <div class="fighters-container">
+        <div class="fighters-container" id="fighters-container" style="display: none;">
             <!-- Игрок -->
             <div class="fighter-section player-section">
                 <div class="fighter-label">Игрок</div>
@@ -32,8 +30,28 @@
             </div>
 
             <!-- Центральная область для надписей о попадании/блокировании -->
-            <div class="action-result-display" id="action-result-display">
+            <div class="action-result-display hidden" id="action-result-display">
                 <div class="action-result-text" id="action-result-text"></div>
+            </div>
+
+            <!-- Кнопки выбора (показываются только в фазе драфта) -->
+            <div class="controls-container" id="controls-container" style="display: none;">
+                <div class="phase-label" id="phase-label">Выберите 3 действия</div>
+                <div class="selected-actions" id="selected-actions" style="display: none;">
+                    <div class="selected-label">Выбрано:</div>
+                    <div class="selected-list" id="selected-list"></div>
+                </div>
+                <div class="action-buttons">
+                    <button class="action-btn" data-action="high" id="btn-high">
+                        <span>Верх</span>
+                    </button>
+                    <button class="action-btn" data-action="mid" id="btn-mid">
+                        <span>Середина</span>
+                    </button>
+                    <button class="action-btn" data-action="low" id="btn-low">
+                        <span>Низ</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Противник -->
@@ -107,26 +125,6 @@
                     <div class="perk-btn-title">FinishHim</div>
                     <div class="perk-btn-description">Добивание</div>
                 </button>
-            </div>
-        </div>
-
-        <!-- Кнопки выбора -->
-        <div class="controls-container" id="controls-container" style="display: none;">
-            <div class="phase-label" id="phase-label">Выберите 3 действия</div>
-            <div class="action-buttons">
-                <button class="action-btn" data-action="high" id="btn-high">
-                    <span>Верх</span>
-                </button>
-                <button class="action-btn" data-action="mid" id="btn-mid">
-                    <span>Середина</span>
-                </button>
-                <button class="action-btn" data-action="low" id="btn-low">
-                    <span>Низ</span>
-                </button>
-            </div>
-            <div class="selected-actions" id="selected-actions">
-                <div class="selected-label">Выбрано:</div>
-                <div class="selected-list" id="selected-list"></div>
             </div>
         </div>
 

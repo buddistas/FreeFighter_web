@@ -225,6 +225,7 @@ class Game {
         this.restartContainer = document.getElementById('restart-container');
         this.restartBtn = document.getElementById('restart-btn');
         this.gameResult = document.getElementById('game-result');
+        this.fightersContainer = document.getElementById('fighters-container');
         
         // Экран выбора характера
         this.personalitySelectionContainer = document.getElementById('personality-selection-container');
@@ -261,6 +262,7 @@ class Game {
         this.enemyActionDisplay = document.getElementById('enemy-action-display');
         this.enemyActionImage = document.getElementById('enemy-action-image');
         this.actionResultText = document.getElementById('action-result-text');
+        this.actionResultDisplay = document.getElementById('action-result-display');
         
         // Метка противника (для отображения характера)
         this.enemyLabel = document.querySelector('.enemy-section .fighter-label');
@@ -326,6 +328,10 @@ class Game {
 
     startPhase() {
         this.currentPhase = 'playing';
+        
+        // Скрываем кнопки выбора и показываем область результатов
+        this.controlsContainer.style.display = 'none';
+        this.actionResultDisplay.classList.remove('hidden');
         
         // Отключаем кнопки
         [this.btnHigh, this.btnMid, this.btnLow].forEach(btn => {
@@ -724,6 +730,14 @@ class Game {
         this.selectedActions = [];
         this.selectedList.innerHTML = '';
         
+        // Показываем кнопки выбора и скрываем область результатов
+        this.controlsContainer.style.display = 'flex';
+        this.actionResultDisplay.classList.add('hidden');
+        
+        // Очищаем текст результатов ударов
+        this.actionResultText.textContent = '';
+        this.actionResultText.classList.remove('hit', 'block', 'critical');
+        
         // Обновляем метку фазы
         const phaseText = this.isPlayerAttacking ? 
             'Выберите 3 атаки' : 'Выберите 3 блока';
@@ -846,7 +860,7 @@ class Game {
         
         // Скрываем экран выбора перка и показываем игру
         this.perkSelectionContainer.style.display = 'none';
-        this.controlsContainer.style.display = 'block';
+        this.fightersContainer.style.display = 'flex';
         this.currentPhase = 'selection';
         
         // Обновляем отображение перков
@@ -909,6 +923,11 @@ class Game {
         this.isTieRound = false;
         this.playerPerk = null;
         this.enemyPerk = null;
+        
+        // Скрываем бойцов и кнопки
+        this.fightersContainer.style.display = 'none';
+        this.controlsContainer.style.display = 'none';
+        this.restartContainer.style.display = 'none';
         
         this.clearActionDisplays();
         this.updateHealthBars();
