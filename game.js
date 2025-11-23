@@ -14,12 +14,14 @@ const DEFAULT_CRIT_CHANCE = {
 // Характеры оппонента
 const OPPONENT_PERSONALITY = {
     RANDOM: 'random',
-    PERSISTENT: 'persistent'
+    PERSISTENT: 'persistent',
+    ADAPTIVE: 'adaptive'
 };
 
 const PERSONALITY_NAMES = {
     [OPPONENT_PERSONALITY.RANDOM]: 'Рандомный',
-    [OPPONENT_PERSONALITY.PERSISTENT]: 'Упорный'
+    [OPPONENT_PERSONALITY.PERSISTENT]: 'Упорный',
+    [OPPONENT_PERSONALITY.ADAPTIVE]: 'Адаптивный'
 };
 
 // Класс перка
@@ -195,6 +197,196 @@ class Fighter {
     }
 }
 
+// Класс для анализа паттернов поведения игрока
+class PatternAnalyzer {
+    constructor() {
+        // Статистика атак игрока
+        this.playerAttacks = [];
+        // Статистика блоков игрока
+        this.playerBlocks = [];
+        // Последние последовательности атак (храним последние 5)
+        this.attackSequences = [];
+        // Последние последовательности блоков (храним последние 5)
+        this.blockSequences = [];
+        // Максимальное количество хранимых последовательностей
+        this.maxSequences = 5;
+        // Минимальное количество раундов для активации анализа
+        this.minRoundsForAnalysis = 3;
+    }
+
+    // Записывает последовательность атак игрока
+    recordAttackSequence(sequence) {
+        this.playerAttacks.push(...sequence);
+        this.attackSequences.push([...sequence]);
+        // Ограничиваем количество хранимых последовательностей
+        if (this.attackSequences.length > this.maxSequences) {
+            this.attackSequences.shift();
+        }
+    }
+
+    // Записывает последовательность блоков игрока
+    recordBlockSequence(sequence) {
+        this.playerBlocks.push(...sequence);
+        this.blockSequences.push([...sequence]);
+        // Ограничиваем количество хранимых последовательностей
+        if (this.blockSequences.length > this.maxSequences) {
+            this.blockSequences.shift();
+        }
+    }
+
+    // Анализирует преобладание зоны в атаках
+    analyzeAttackZonePreference() {
+        if (this.playerAttacks.length === 0) {
+            return null;
+        }
+
+        const zoneCounts = { high: 0, mid: 0, low: 0 };
+        this.playerAttacks.forEach(zone => {
+            zoneCounts[zone]++;
+        });
+
+        const total = this.playerAttacks.length;
+        const percentages = {
+            high: zoneCounts.high / total,
+            mid: zoneCounts.mid / total,
+            low: zoneCounts.low / total
+        };
+
+        // Ищем зону с преобладанием >50%
+        for (const [zone, percentage] of Object.entries(percentages)) {
+            if (percentage > 0.5) {
+                return {
+                    zone: zone,
+                    percentage: percentage,
+                    strength: percentage >= 0.7 ? 'strong' : 'weak'
+                };
+            }
+        }
+
+        return null;
+    }
+
+    // Анализирует преобладание зоны в блоках
+    analyzeBlockZonePreference() {
+        if (this.playerBlocks.length === 0) {
+            return null;
+        }
+
+        const zoneCounts = { high: 0, mid: 0, low: 0 };
+        this.playerBlocks.forEach(zone => {
+            zoneCounts[zone]++;
+        });
+
+        const total = this.playerBlocks.length;
+        const percentages = {
+            high: zoneCounts.high / total,
+            mid: zoneCounts.mid / total,
+            low: zoneCounts.low / total
+        };
+
+        // Ищем зону с преобладанием >50%
+        for (const [zone, percentage] of Object.entries(percentages)) {
+            if (percentage > 0.5) {
+                return {
+                    zone: zone,
+                    percentage: percentage,
+                    strength: percentage >= 0.7 ? 'strong' : 'weak'
+                };
+            }
+        }
+
+        return null;
+    }
+
+    // Анализирует повторяющиеся последовательности атак
+    analyzeRepeatingAttackSequence() {
+        if (this.attackSequences.length < 2) {
+            return null;
+        }
+
+        // Ищем последнюю последовательность в истории
+        const lastSequence = this.attackSequences[this.attackSequences.length - 1];
+        
+        // Проверяем, сколько раз эта последовательность встречалась в последних последовательностях
+        let matchCount = 0;
+        for (let i = 0; i < this.attackSequences.length - 1; i++) {
+            if (this.sequencesEqual(this.attackSequences[i], lastSequence)) {
+                matchCount++;
+            }
+        }
+
+        // Если последовательность повторяется 2+ раза, считаем это паттерном
+        if (matchCount >= 2) {
+            return {
+                sequence: lastSequence,
+                repeatCount: matchCount + 1, // +1 для последней последовательности
+                strength: matchCount >= 3 ? 'strong' : 'weak'
+            };
+        }
+
+        return null;
+    }
+
+    // Анализирует повторяющиеся последовательности блоков
+    analyzeRepeatingBlockSequence() {
+        if (this.blockSequences.length < 2) {
+            return null;
+        }
+
+        // Ищем последнюю последовательность в истории
+        const lastSequence = this.blockSequences[this.blockSequences.length - 1];
+        
+        // Проверяем, сколько раз эта последовательность встречалась в последних последовательностях
+        let matchCount = 0;
+        for (let i = 0; i < this.blockSequences.length - 1; i++) {
+            if (this.sequencesEqual(this.blockSequences[i], lastSequence)) {
+                matchCount++;
+            }
+        }
+
+        // Если последовательность повторяется 2+ раза, считаем это паттерном
+        if (matchCount >= 2) {
+            return {
+                sequence: lastSequence,
+                repeatCount: matchCount + 1, // +1 для последней последовательности
+                strength: matchCount >= 3 ? 'strong' : 'weak'
+            };
+        }
+
+        return null;
+    }
+
+    // Проверяет равенство двух последовательностей
+    sequencesEqual(seq1, seq2) {
+        if (seq1.length !== seq2.length) {
+            return false;
+        }
+        for (let i = 0; i < seq1.length; i++) {
+            if (seq1[i] !== seq2[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Проверяет, достаточно ли данных для анализа
+    hasEnoughData() {
+        const totalRounds = Math.max(
+            this.attackSequences.length,
+            this.blockSequences.length
+        );
+        return totalRounds >= this.minRoundsForAnalysis;
+    }
+
+    // Сбрасывает всю статистику
+    reset() {
+        this.playerAttacks = [];
+        this.playerBlocks = [];
+        this.attackSequences = [];
+        this.blockSequences = [];
+    }
+}
+
 // Класс игры
 class Game {
     constructor() {
@@ -208,6 +400,7 @@ class Game {
         this.opponentPersonality = null; // Характер оппонента
         this.playerPerk = null; // Выбранный перк игрока
         this.enemyPerk = null; // Перк противника
+        this.patternAnalyzer = new PatternAnalyzer(); // Анализатор паттернов для адаптивного AI
         
         this.initializeUI();
     }
@@ -231,6 +424,7 @@ class Game {
         this.personalitySelectionContainer = document.getElementById('personality-selection-container');
         this.personalityRandomBtn = document.getElementById('personality-random-btn');
         this.personalityPersistentBtn = document.getElementById('personality-persistent-btn');
+        this.personalityAdaptiveBtn = document.getElementById('personality-adaptive-btn');
         
         // Экран выбора перка
         this.perkSelectionContainer = document.getElementById('perk-selection-container');
@@ -274,6 +468,7 @@ class Game {
         this.restartBtn.addEventListener('click', () => this.restart());
         this.personalityRandomBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.RANDOM));
         this.personalityPersistentBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.PERSISTENT));
+        this.personalityAdaptiveBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.ADAPTIVE));
         
         // Обработчики выбора перка
         this.perkHeadHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.HEAD_HUNTER));
@@ -342,9 +537,17 @@ class Game {
         // Устанавливаем последовательности
         if (this.isPlayerAttacking) {
             this.player.setAttackSequence([...this.selectedActions]);
+            // Записываем последовательность атак игрока для анализа
+            if (this.opponentPersonality === OPPONENT_PERSONALITY.ADAPTIVE) {
+                this.patternAnalyzer.recordAttackSequence([...this.selectedActions]);
+            }
             this.enemy.setBlockSequence(this.generateEnemySequence());
         } else {
             this.player.setBlockSequence([...this.selectedActions]);
+            // Записываем последовательность блоков игрока для анализа
+            if (this.opponentPersonality === OPPONENT_PERSONALITY.ADAPTIVE) {
+                this.patternAnalyzer.recordBlockSequence([...this.selectedActions]);
+            }
             this.enemy.setAttackSequence(this.generateEnemySequence());
         }
         
@@ -357,6 +560,8 @@ class Game {
     generateEnemySequence() {
         if (this.opponentPersonality === OPPONENT_PERSONALITY.PERSISTENT) {
             return this.generatePersistentSequence();
+        } else if (this.opponentPersonality === OPPONENT_PERSONALITY.ADAPTIVE) {
+            return this.generateAdaptiveSequence();
         } else {
             return this.generateRandomSequence();
         }
@@ -388,6 +593,152 @@ class Game {
                 // 30% вероятность - выбираем случайное действие
                 lastAction = actions[Math.floor(Math.random() * actions.length)];
                 sequence.push(lastAction);
+            }
+        }
+        
+        return sequence;
+    }
+
+    generateAdaptiveSequence() {
+        // Если недостаточно данных, используем случайную стратегию
+        if (!this.patternAnalyzer.hasEnoughData()) {
+            return this.generateRandomSequence();
+        }
+
+        const isAttacking = !this.isPlayerAttacking; // Если игрок защищается, противник атакует
+        
+        if (isAttacking) {
+            // Противник атакует - анализируем блоки игрока
+            return this.generateAdaptiveAttackSequence();
+        } else {
+            // Противник защищается - анализируем атаки игрока
+            return this.generateAdaptiveBlockSequence();
+        }
+    }
+
+    generateAdaptiveAttackSequence() {
+        // Анализируем паттерны блоков игрока, чтобы атаковать в незащищенные зоны
+        const blockPreference = this.patternAnalyzer.analyzeBlockZonePreference();
+        const repeatingBlock = this.patternAnalyzer.analyzeRepeatingBlockSequence();
+        
+        // Приоритет: повторяющаяся последовательность > преобладание зоны
+        if (repeatingBlock) {
+            // Если игрок повторяет последовательность блоков, атакуем в другие зоны
+            const sequence = this.generateCounterSequence(repeatingBlock.sequence, repeatingBlock.strength);
+            return sequence;
+        } else if (blockPreference) {
+            // Если игрок часто защищает одну зону, атакуем другие зоны
+            const sequence = this.generateCounterZoneSequence(blockPreference.zone, blockPreference.strength);
+            return sequence;
+        }
+        
+        // Если паттернов нет, используем случайную стратегию
+        return this.generateRandomSequence();
+    }
+
+    generateAdaptiveBlockSequence() {
+        // Анализируем паттерны атак игрока, чтобы блокировать их
+        const attackPreference = this.patternAnalyzer.analyzeAttackZonePreference();
+        const repeatingAttack = this.patternAnalyzer.analyzeRepeatingAttackSequence();
+        
+        // Приоритет: повторяющаяся последовательность > преобладание зоны
+        if (repeatingAttack) {
+            // Если игрок повторяет последовательность атак, блокируем её
+            const sequence = this.generateMatchingSequence(repeatingAttack.sequence, repeatingAttack.strength);
+            return sequence;
+        } else if (attackPreference) {
+            // Если игрок часто атакует одну зону, блокируем её
+            const sequence = this.generateMatchingZoneSequence(attackPreference.zone, attackPreference.strength);
+            return sequence;
+        }
+        
+        // Если паттернов нет, используем случайную стратегию
+        return this.generateRandomSequence();
+    }
+
+    // Генерирует последовательность, которая блокирует повторяющуюся последовательность игрока
+    generateMatchingSequence(playerSequence, strength) {
+        const sequence = [...playerSequence];
+        
+        // Сильный паттерн: 80% использовать паттерн, 20% случайность
+        // Слабый паттерн: 60% использовать паттерн, 40% случайность
+        const patternWeight = strength === 'strong' ? 0.8 : 0.6;
+        
+        // Применяем случайность к каждому действию
+        for (let i = 0; i < sequence.length; i++) {
+            if (Math.random() > patternWeight) {
+                // Заменяем на случайную зону
+                const actions = ['high', 'mid', 'low'];
+                sequence[i] = actions[Math.floor(Math.random() * actions.length)];
+            }
+        }
+        
+        return sequence;
+    }
+
+    // Генерирует последовательность, которая блокирует преобладающую зону игрока
+    generateMatchingZoneSequence(preferredZone, strength) {
+        const sequence = [];
+        const actions = ['high', 'mid', 'low'];
+        
+        // Сильный паттерн: 80% блокировать предпочитаемую зону, 20% случайность
+        // Слабый паттерн: 60% блокировать предпочитаемую зону, 40% случайность
+        const patternWeight = strength === 'strong' ? 0.8 : 0.6;
+        
+        for (let i = 0; i < ACTIONS_PER_PHASE; i++) {
+            if (Math.random() < patternWeight) {
+                sequence.push(preferredZone);
+            } else {
+                // Случайная зона
+                sequence.push(actions[Math.floor(Math.random() * actions.length)]);
+            }
+        }
+        
+        return sequence;
+    }
+
+    // Генерирует последовательность, которая атакует в зоны, отличные от повторяющейся последовательности блоков игрока
+    generateCounterSequence(playerBlockSequence, strength) {
+        const sequence = [];
+        const actions = ['high', 'mid', 'low'];
+        
+        // Сильный паттерн: 80% атаковать в другие зоны, 20% случайность
+        // Слабый паттерн: 60% атаковать в другие зоны, 40% случайность
+        const patternWeight = strength === 'strong' ? 0.8 : 0.6;
+        
+        for (let i = 0; i < ACTIONS_PER_PHASE; i++) {
+            const playerBlock = playerBlockSequence[i];
+            
+            if (Math.random() < patternWeight) {
+                // Атакуем в зоны, отличные от блока игрока
+                const otherZones = actions.filter(zone => zone !== playerBlock);
+                sequence.push(otherZones[Math.floor(Math.random() * otherZones.length)]);
+            } else {
+                // Случайная зона
+                sequence.push(actions[Math.floor(Math.random() * actions.length)]);
+            }
+        }
+        
+        return sequence;
+    }
+
+    // Генерирует последовательность, которая атакует в зоны, отличные от предпочитаемой зоны блоков игрока
+    generateCounterZoneSequence(preferredBlockZone, strength) {
+        const sequence = [];
+        const actions = ['high', 'mid', 'low'];
+        const otherZones = actions.filter(zone => zone !== preferredBlockZone);
+        
+        // Сильный паттерн: 80% атаковать в другие зоны, 20% случайность
+        // Слабый паттерн: 60% атаковать в другие зоны, 40% случайность
+        const patternWeight = strength === 'strong' ? 0.8 : 0.6;
+        
+        for (let i = 0; i < ACTIONS_PER_PHASE; i++) {
+            if (Math.random() < patternWeight) {
+                // Атакуем в зоны, отличные от предпочитаемой зоны блоков
+                sequence.push(otherZones[Math.floor(Math.random() * otherZones.length)]);
+            } else {
+                // Случайная зона
+                sequence.push(actions[Math.floor(Math.random() * actions.length)]);
             }
         }
         
@@ -778,6 +1129,9 @@ class Game {
         // Обновляем метку противника
         this.enemyLabel.textContent = PERSONALITY_NAMES[personality];
         
+        // Сбрасываем статистику паттернов при выборе новой личности
+        this.patternAnalyzer.reset();
+        
         // Показываем экран выбора перка
         this.showPerkSelection();
     }
@@ -923,6 +1277,8 @@ class Game {
         this.isTieRound = false;
         this.playerPerk = null;
         this.enemyPerk = null;
+        // Сбрасываем анализатор паттернов
+        this.patternAnalyzer.reset();
         
         // Скрываем бойцов и кнопки
         this.fightersContainer.style.display = 'none';

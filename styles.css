@@ -241,7 +241,11 @@ h1 {
     cursor: pointer;
     transition: all 0.3s ease;
     text-transform: uppercase;
-    min-width: 120px;
+    width: 140px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .action-btn:hover:not(:disabled) {
@@ -526,8 +530,7 @@ h1 {
     }
     
     .action-btn {
-        width: 100%;
-        max-width: 120px;
+        width: 120px;
         padding: 12px 20px;
         font-size: 1em;
         min-height: 45px;
@@ -650,7 +653,7 @@ h1 {
     }
     
     .action-btn {
-        max-width: 100px;
+        width: 100px;
         padding: 10px 15px;
         font-size: 0.9em;
         min-height: 40px;
