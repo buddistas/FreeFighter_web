@@ -120,7 +120,9 @@ const PERKS = {
 };
 
 const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER, PERKS.TIE_BREAKER, PERKS.HP_BOOST, PERKS.CRIT_DEFLECTOR, PERKS.LUCKER, PERKS.BLOCK_MASTER, PERKS.FINISH_HIM, PERKS.EQUALIZER];
-const ENEMY_PERKS_COUNT = 1; // Количество случайных перков для противника
+const ENEMY_PERKS_COUNT = 2; // Количество случайных перков для противника
+const PLAYER_PERKS_COUNT = 2; // Количество перков для игрока
+const PERKS_PER_SELECTION = 3; // Количество перков на выбор в каждом окне
 
 // Пути к изображениям
 const IMAGE_PATHS = {
@@ -149,8 +151,8 @@ class Fighter {
         this.blockSequence = [];
         // Вероятности критического удара по зонам
         this.critChance = { ...DEFAULT_CRIT_CHANCE };
-        // Активный перк
-        this.activePerk = null;
+        // Активные перки (массив)
+        this.activePerks = [];
     }
 
     setAttackSequence(sequence) {
@@ -181,9 +183,13 @@ class Fighter {
         this.maxHp = hp;
         this.attackSequence = [];
         this.blockSequence = [];
-        // Сбрасываем перк и вероятности критов
-        this.activePerk = null;
+        // Сбрасываем перки и вероятности критов
+        this.activePerks = [];
         this.critChance = { ...DEFAULT_CRIT_CHANCE };
+    }
+
+    hasPerk(perkId) {
+        return this.activePerks.some(perk => perk && perk.id === perkId);
     }
 
     applyPerk(perk) {
@@ -191,7 +197,16 @@ class Fighter {
             return; // Не применяем перк, если он null или undefined
         }
         
-        this.activePerk = perk;
+        // Проверяем, был ли уже добавлен этот перк
+        const alreadyHasPerk = this.activePerks.some(p => p && p.id === perk.id);
+        
+        // Если перк уже был добавлен, не применяем его повторно
+        if (alreadyHasPerk) {
+            return;
+        }
+        
+        // Добавляем перк в массив
+        this.activePerks.push(perk);
         
         // Специальная обработка для HP_BOOST - увеличиваем HP
         if (perk.id === 'hp_boost') {
@@ -200,6 +215,13 @@ class Fighter {
         } else {
             // Применяем стандартный эффект перка (для критов)
             perk.apply(this);
+        }
+    }
+
+    applyPerks(perks) {
+        // Применяем массив перков
+        if (perks && Array.isArray(perks)) {
+            perks.forEach(perk => this.applyPerk(perk));
         }
     }
 }
@@ -406,8 +428,9 @@ class Game {
         this.actionResults = []; // Результаты действий для отображения на пиктограммах
         this.isTieRound = false;
         this.opponentPersonality = null; // Характер оппонента
-        this.playerPerk = null; // Выбранный перк игрока
-        this.enemyPerk = null; // Перк противника
+        this.playerPerks = []; // Выбранные перки игрока (массив)
+        this.enemyPerks = []; // Перки противника (массив)
+        this.playerPerkSelectionStep = 0; // Шаг выбора перка игрока (0 - первый выбор, 1 - второй выбор)
         this.patternAnalyzer = new PatternAnalyzer(); // Анализатор паттернов для адаптивного AI
         
         this.initializeUI();
@@ -490,6 +513,7 @@ class Game {
         this.perkLuckerBtn.addEventListener('click', () => this.selectPerk(PERKS.LUCKER));
         this.perkBlockMasterBtn.addEventListener('click', () => this.selectPerk(PERKS.BLOCK_MASTER));
         this.perkFinishHimBtn.addEventListener('click', () => this.selectPerk(PERKS.FINISH_HIM));
+        this.perkEqualizerBtn.addEventListener('click', () => this.selectPerk(PERKS.EQUALIZER));
         
         // Обработчик изменения размера окна для обновления засечек
         window.addEventListener('resize', () => {
@@ -815,7 +839,7 @@ class Game {
                     enemyConsecutiveBlocks++;
                     // Проверяем перк BlockMaster при двух блоках подряд
                     if (enemyConsecutiveBlocks === 2) {
-                        const hasBlockMaster = this.enemy.activePerk && this.enemy.activePerk.id === 'block_master';
+                        const hasBlockMaster = this.enemy.hasPerk('block_master');
                         if (hasBlockMaster) {
                             const oldHp = this.enemy.hp;
                             this.enemy.hp = Math.min(this.enemy.maxHp, this.enemy.hp + 1);
@@ -836,7 +860,7 @@ class Game {
                     playerConsecutiveBlocks++;
                     // Проверяем перк BlockMaster при двух блоках подряд
                     if (playerConsecutiveBlocks === 2) {
-                        const hasBlockMaster = this.player.activePerk && this.player.activePerk.id === 'block_master';
+                        const hasBlockMaster = this.player.hasPerk('block_master');
                         if (hasBlockMaster) {
                             const oldHp = this.player.hp;
                             this.player.hp = Math.min(this.player.maxHp, this.player.hp + 1);
@@ -871,7 +895,7 @@ class Game {
             // FinishHim не работает в дополнительных раундах
             if (!this.isTieRound) {
                 // Проверяем перк FinishHim для игрока
-                const hasFinishHimPlayer = this.player.activePerk && this.player.activePerk.id === 'finish_him';
+                const hasFinishHimPlayer = this.player.hasPerk('finish_him');
                 if (hasFinishHimPlayer && this.enemy.hp === 1) {
                     this.enemy.takeDamage(1);
                     this.showActionText('FinishHim!', 'hit critical');
@@ -879,7 +903,7 @@ class Game {
                     await this.delay(1500);
                 }
                 // Проверяем перк FinishHim для противника
-                const hasFinishHimEnemy = this.enemy.activePerk && this.enemy.activePerk.id === 'finish_him';
+                const hasFinishHimEnemy = this.enemy.hasPerk('finish_him');
                 if (hasFinishHimEnemy && this.player.hp === 1) {
                     this.player.takeDamage(1);
                     this.showActionText('FinishHim!', 'hit critical');
@@ -890,7 +914,7 @@ class Game {
 
             // Проверяем перк Equalizer (работает в обычных и дополнительных раундах)
             // Проверяем перк Equalizer для игрока
-            const hasEqualizerPlayer = this.player.activePerk && this.player.activePerk.id === 'equalizer';
+            const hasEqualizerPlayer = this.player.hasPerk('equalizer');
             if (hasEqualizerPlayer && this.enemy.hp - this.player.hp >= 4) {
                 this.enemy.takeDamage(2);
                 this.showActionText('Equalizer!', 'hit critical');
@@ -898,7 +922,7 @@ class Game {
                 await this.delay(1500);
             }
             // Проверяем перк Equalizer для противника
-            const hasEqualizerEnemy = this.enemy.activePerk && this.enemy.activePerk.id === 'equalizer';
+            const hasEqualizerEnemy = this.enemy.hasPerk('equalizer');
             if (hasEqualizerEnemy && this.player.hp - this.enemy.hp >= 4) {
                 this.player.takeDamage(2);
                 this.showActionText('Equalizer!', 'hit critical');
@@ -936,13 +960,13 @@ class Game {
                 const isCritical = this.player.checkCriticalHit(playerAction);
                 if (isCritical) {
                     // Проверяем, есть ли у противника перк CritDeflector
-                    const hasCritDeflector = this.enemy.activePerk && this.enemy.activePerk.id === 'crit_deflector';
+                    const hasCritDeflector = this.enemy.hasPerk('crit_deflector');
                     if (hasCritDeflector && Math.random() < 0.5) {
                         // Перк сработал - крит превращается в обычный удар
                         this.showActionText('CRIT DEFLECTED!', 'hit critical');
                     } else {
                         // Крит прошел, проверяем перк Lucker у атакующего
-                        const hasLucker = this.player.activePerk && this.player.activePerk.id === 'lucker';
+                        const hasLucker = this.player.hasPerk('lucker');
                         if (hasLucker && Math.random() < 0.5) {
                             // Перк Lucker сработал - учетверяем урон
                             damage *= 4;
@@ -977,13 +1001,13 @@ class Game {
                 const isCritical = this.enemy.checkCriticalHit(enemyAction);
                 if (isCritical) {
                     // Проверяем, есть ли у игрока перк CritDeflector
-                    const hasCritDeflector = this.player.activePerk && this.player.activePerk.id === 'crit_deflector';
+                    const hasCritDeflector = this.player.hasPerk('crit_deflector');
                     if (hasCritDeflector && Math.random() < 0.5) {
                         // Перк сработал - крит превращается в обычный удар
                         this.showActionText('CRIT DEFLECTED!', 'hit critical');
                     } else {
                         // Крит прошел, проверяем перк Lucker у атакующего
-                        const hasLucker = this.enemy.activePerk && this.enemy.activePerk.id === 'lucker';
+                        const hasLucker = this.enemy.hasPerk('lucker');
                         if (hasLucker && Math.random() < 0.5) {
                             // Перк Lucker сработал - учетверяем урон
                             damage *= 4;
@@ -1119,8 +1143,8 @@ class Game {
         this.isTieRound = true;
         
         // Определяем HP для дополнительного раунда: 4 если есть TieBreaker, иначе 2
-        const playerTieHP = (this.playerPerk && this.playerPerk.id === 'tie_breaker') ? TIE_ROUND_HP + 2 : TIE_ROUND_HP;
-        const enemyTieHP = (this.enemyPerk && this.enemyPerk.id === 'tie_breaker') ? TIE_ROUND_HP + 2 : TIE_ROUND_HP;
+        const playerTieHP = this.player.hasPerk('tie_breaker') ? TIE_ROUND_HP + 2 : TIE_ROUND_HP;
+        const enemyTieHP = this.enemy.hasPerk('tie_breaker') ? TIE_ROUND_HP + 2 : TIE_ROUND_HP;
         
         this.player.reset(playerTieHP);
         this.enemy.reset(enemyTieHP);
@@ -1128,11 +1152,11 @@ class Game {
         this.isPlayerAttacking = true;
         
         // Восстанавливаем перки после сброса
-        if (this.playerPerk) {
-            this.player.applyPerk(this.playerPerk);
+        if (this.playerPerks && this.playerPerks.length > 0) {
+            this.player.applyPerks(this.playerPerks);
         }
-        if (this.enemyPerk) {
-            this.enemy.applyPerk(this.enemyPerk);
+        if (this.enemyPerks && this.enemyPerks.length > 0) {
+            this.enemy.applyPerks(this.enemyPerks);
         }
         
         this.updateHealthBars();
@@ -1207,8 +1231,74 @@ class Game {
         this.controlsContainer.style.display = 'none';
         this.restartContainer.style.display = 'none';
         
-        // Обновляем текст кнопок перков из объектов Perk
-        this.updatePerkButtons();
+        // Показываем 3 случайных перка для выбора
+        this.showRandomPerks();
+    }
+
+    showRandomPerks() {
+        // Получаем доступные перки (исключаем уже выбранные)
+        const availablePerks = ALL_PERKS.filter(perk => 
+            !this.playerPerks.some(selected => selected && selected.id === perk.id)
+        );
+        
+        // Выбираем 3 случайных перка
+        const randomPerks = [];
+        const perksToShow = Math.min(PERKS_PER_SELECTION, availablePerks.length);
+        const shuffled = [...availablePerks].sort(() => Math.random() - 0.5);
+        
+        for (let i = 0; i < perksToShow; i++) {
+            randomPerks.push(shuffled[i]);
+        }
+        
+        // Обновляем заголовок
+        const titleElement = this.perkSelectionContainer.querySelector('.perk-selection-title');
+        if (titleElement) {
+            if (this.playerPerkSelectionStep === 0) {
+                titleElement.textContent = 'Выберите первый перк';
+            } else {
+                titleElement.textContent = 'Выберите второй перк';
+            }
+        }
+        
+        // Скрываем все кнопки перков
+        const allPerkButtons = [
+            this.perkHeadHunterBtn, this.perkBodyHunterBtn, this.perkLegHunterBtn,
+            this.perkTieBreakerBtn, this.perkHPBoostBtn, this.perkCritDeflectorBtn,
+            this.perkLuckerBtn, this.perkBlockMasterBtn, this.perkFinishHimBtn,
+            this.perkEqualizerBtn
+        ];
+        allPerkButtons.forEach(btn => {
+            if (btn) btn.style.display = 'none';
+        });
+        
+        // Показываем только выбранные случайные перки
+        randomPerks.forEach(perk => {
+            const btn = this.getPerkButton(perk);
+            if (btn) {
+                btn.style.display = 'block';
+                // Обновляем текст кнопки
+                const title = btn.querySelector('.perk-btn-title');
+                const desc = btn.querySelector('.perk-btn-description');
+                if (title) title.textContent = perk.name;
+                if (desc) desc.textContent = perk.fullName;
+            }
+        });
+    }
+
+    getPerkButton(perk) {
+        const buttonMap = {
+            'head_hunter': this.perkHeadHunterBtn,
+            'body_hunter': this.perkBodyHunterBtn,
+            'leg_hunter': this.perkLegHunterBtn,
+            'tie_breaker': this.perkTieBreakerBtn,
+            'hp_boost': this.perkHPBoostBtn,
+            'crit_deflector': this.perkCritDeflectorBtn,
+            'lucker': this.perkLuckerBtn,
+            'block_master': this.perkBlockMasterBtn,
+            'finish_him': this.perkFinishHimBtn,
+            'equalizer': this.perkEqualizerBtn
+        };
+        return buttonMap[perk.id] || null;
     }
 
     updatePerkButtons() {
@@ -1274,63 +1364,84 @@ class Game {
     }
 
     selectPerk(perk) {
-        this.playerPerk = perk;
-        this.player.applyPerk(perk);
-        
-        // Даем противнику случайный перк
-        this.enemyPerk = this.getRandomEnemyPerk();
-        if (this.enemyPerk) {
-            this.enemy.applyPerk(this.enemyPerk);
+        // Проверяем, не был ли уже выбран этот перк
+        if (this.playerPerks.some(selected => selected && selected.id === perk.id)) {
+            // Перк уже выбран, игнорируем повторный выбор
+            return;
         }
         
-        // Скрываем экран выбора перка и показываем игру
-        this.perkSelectionContainer.style.display = 'none';
-        this.fightersContainer.style.display = 'flex';
-        this.currentPhase = 'selection';
+        // Добавляем выбранный перк в массив
+        this.playerPerks.push(perk);
+        this.player.applyPerk(perk);
         
-        // Обновляем отображение перков
-        this.updatePerkDisplays();
-        
-        // Инициализируем игру
-        this.updateHealthBars();
-        
-        // Активируем кнопки выбора направления
-        this.startNewRound();
+        // Проверяем, выбрал ли игрок оба перка
+        if (this.playerPerks.length < PLAYER_PERKS_COUNT) {
+            // Еще нужно выбрать второй перк
+            this.playerPerkSelectionStep = 1;
+            this.showPerkSelection();
+        } else {
+            // Оба перка выбраны, даем противнику два случайных перка
+            this.enemyPerks = this.getRandomEnemyPerks();
+            if (this.enemyPerks && this.enemyPerks.length > 0) {
+                this.enemy.applyPerks(this.enemyPerks);
+            }
+            
+            // Скрываем экран выбора перка и показываем игру
+            this.perkSelectionContainer.style.display = 'none';
+            this.fightersContainer.style.display = 'flex';
+            this.currentPhase = 'selection';
+            
+            // Обновляем отображение перков
+            this.updatePerkDisplays();
+            
+            // Инициализируем игру
+            this.updateHealthBars();
+            
+            // Активируем кнопки выбора направления
+            this.startNewRound();
+        }
     }
 
-    getRandomEnemyPerk() {
-        // Выбираем случайный перк из доступных
+    getRandomEnemyPerks() {
+        // Выбираем случайные перки из доступных
         const availablePerks = [...ALL_PERKS];
         
         if (availablePerks.length === 0) {
-            return null;
+            return [];
         }
         
         // Выбираем ENEMY_PERKS_COUNT случайных перков
         const selectedPerks = [];
-        for (let i = 0; i < ENEMY_PERKS_COUNT && availablePerks.length > 0; i++) {
-            const randomIndex = Math.floor(Math.random() * availablePerks.length);
-            selectedPerks.push(availablePerks[randomIndex]);
-            availablePerks.splice(randomIndex, 1);
+        const shuffled = [...availablePerks].sort(() => Math.random() - 0.5);
+        
+        for (let i = 0; i < ENEMY_PERKS_COUNT && i < shuffled.length; i++) {
+            selectedPerks.push(shuffled[i]);
         }
         
-        // Возвращаем первый выбранный перк (пока только один)
-        return selectedPerks[0] || null;
+        return selectedPerks;
     }
 
     updatePerkDisplays() {
-        // Обновляем отображение перка игрока (короткое название)
-        if (this.player.activePerk) {
-            this.playerPerkDisplay.textContent = this.player.activePerk.name;
+        // Обновляем отображение перков игрока (короткие названия через запятую)
+        if (this.player.activePerks && this.player.activePerks.length > 0) {
+            const perkNames = this.player.activePerks
+                .filter(p => p !== null)
+                .map(p => p.name)
+                .join(', ');
+            this.playerPerkDisplay.textContent = perkNames;
             this.playerPerkDisplay.classList.add('active');
         } else {
             this.playerPerkDisplay.textContent = '';
             this.playerPerkDisplay.classList.remove('active');
         }
         
-        // Обновляем отображение перка противника (короткое название)
-        if (this.enemy.activePerk) {
-            this.enemyPerkDisplay.textContent = this.enemy.activePerk.name;
+        // Обновляем отображение перков противника (короткие названия через запятую)
+        if (this.enemy.activePerks && this.enemy.activePerks.length > 0) {
+            const perkNames = this.enemy.activePerks
+                .filter(p => p !== null)
+                .map(p => p.name)
+                .join(', ');
+            this.enemyPerkDisplay.textContent = perkNames;
             this.enemyPerkDisplay.classList.add('active');
         } else {
             this.enemyPerkDisplay.textContent = '';
@@ -1346,8 +1457,9 @@ class Game {
         this.isPlayerAttacking = true;
         this.selectedActions = [];
         this.isTieRound = false;
-        this.playerPerk = null;
-        this.enemyPerk = null;
+        this.playerPerks = [];
+        this.enemyPerks = [];
+        this.playerPerkSelectionStep = 0;
         // Сбрасываем анализатор паттернов
         this.patternAnalyzer.reset();
         
