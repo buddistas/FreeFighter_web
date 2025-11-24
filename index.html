@@ -24,6 +24,7 @@
                     <div class="health-text" id="player-health-text">12 / 12</div>
                 </div>
                 <div class="perk-display" id="player-perk-display"></div>
+                <div class="fighting-style-display" id="player-fighting-style-display"></div>
                 <div class="action-display" id="player-action-display">
                     <img id="player-action-image" src="" alt="">
                 </div>
@@ -65,6 +66,7 @@
                     <div class="health-text" id="enemy-health-text">12 / 12</div>
                 </div>
                 <div class="perk-display" id="enemy-perk-display"></div>
+                <div class="fighting-style-display" id="enemy-fighting-style-display"></div>
                 <div class="action-display" id="enemy-action-display">
                     <img id="enemy-action-image" src="" alt="">
                 </div>
@@ -86,6 +88,33 @@
                 <button class="personality-btn" id="personality-adaptive-btn">
                     <div class="personality-btn-title">Адаптивный</div>
                     <div class="personality-btn-description">Анализирует паттерны и адаптируется к стилю игры</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Экран выбора боевого стиля -->
+        <div class="fighting-style-selection-container" id="fighting-style-selection-container" style="display: none;">
+            <div class="fighting-style-selection-title">Выберите боевой стиль</div>
+            <div class="fighting-style-buttons">
+                <button class="fighting-style-btn" id="fighting-style-boxing-btn">
+                    <div class="fighting-style-btn-title">Boxing</div>
+                    <div class="fighting-style-btn-description">Классический бокс</div>
+                    <div class="fighting-style-advantages">
+                        <div class="advantage">✓ Удвоенная вероятность крита в тело (+5%)</div>
+                        <div class="advantage">✓ Удвоенная вероятность крита в голову (+10%)</div>
+                    </div>
+                    <div class="fighting-style-disadvantages">
+                        <div class="disadvantage">✗ Не может провести серию из 2+ атак в ноги</div>
+                    </div>
+                </button>
+                <button class="fighting-style-btn" id="fighting-style-muay-thai-btn">
+                    <div class="fighting-style-btn-title">Muay Thai</div>
+                    <div class="fighting-style-btn-description">Тайский бокс</div>
+                    <div class="fighting-style-advantages">
+                        <div class="advantage">✓ Удвоенная вероятность крита в ноги (+5%)</div>
+                        <div class="advantage">✓ 50% шанс превратить пропущенный крит в ноги в обычный удар</div>
+                    </div>
+                    <div class="fighting-style-disadvantages"></div>
                 </button>
             </div>
         </div>

@@ -24,6 +24,76 @@ const PERSONALITY_NAMES = {
     [OPPONENT_PERSONALITY.ADAPTIVE]: 'Адаптивный'
 };
 
+// Класс боевого стиля
+class FightingStyle {
+    constructor(id, name, description, advantages, disadvantages) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.advantages = advantages; // Массив преимуществ
+        this.disadvantages = disadvantages; // Массив недостатков
+    }
+
+    // Применяет эффект стиля к бойцу
+    apply(fighter) {
+        if (!fighter) {
+            return;
+        }
+
+        if (this.id === 'boxing') {
+            // Boxing: удваиваем вероятность крита в тело и голову
+            fighter.critChance.mid = DEFAULT_CRIT_CHANCE.mid * 2; // 5% -> 10%
+            fighter.critChance.high = DEFAULT_CRIT_CHANCE.high * 2; // 10% -> 20%
+        } else if (this.id === 'muay_thai') {
+            // Muay Thai: удваиваем вероятность крита в ноги
+            fighter.critChance.low = DEFAULT_CRIT_CHANCE.low * 2; // 5% -> 10%
+        }
+    }
+
+    // Проверяет, может ли боец выбрать действие (для ограничений стиля)
+    canSelectAction(action, selectedActions, isAttacking) {
+        if (this.id === 'boxing' && isAttacking) {
+            // Boxing: не может провести серию из 2+ атак в ноги
+            // Если уже выбрана атака в ноги, блокируем повторный выбор
+            if (action === 'low' && selectedActions.includes('low')) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Обрабатывает получение урона (для защитных эффектов стиля)
+    handleIncomingCrit(action, isCritical) {
+        if (this.id === 'muay_thai' && action === 'low' && isCritical) {
+            // Muay Thai: 50% шанс превратить пропущенный крит в ноги в обычный удар
+            if (Math.random() < 0.5) {
+                return false; // Превращаем крит в обычный удар
+            }
+        }
+        return isCritical; // Возвращаем исходное значение
+    }
+}
+
+// Определение всех боевых стилей
+const FIGHTING_STYLES = {
+    BOXING: new FightingStyle(
+        'boxing',
+        'Boxing',
+        'Классический бокс',
+        ['Удвоенная вероятность крита в тело (+5%)', 'Удвоенная вероятность крита в голову (+10%)'],
+        ['Не может провести серию из 2+ атак в ноги']
+    ),
+    MUAY_THAI: new FightingStyle(
+        'muay_thai',
+        'Muay Thai',
+        'Тайский бокс',
+        ['Удвоенная вероятность крита в ноги (+5%)', '50% шанс превратить пропущенный крит в ноги в обычный удар'],
+        []
+    )
+};
+
+const ALL_FIGHTING_STYLES = [FIGHTING_STYLES.BOXING, FIGHTING_STYLES.MUAY_THAI];
+
 // Класс перка
 class Perk {
     constructor(id, name, fullName, description, targetZone) {
@@ -153,6 +223,8 @@ class Fighter {
         this.critChance = { ...DEFAULT_CRIT_CHANCE };
         // Активные перки (массив)
         this.activePerks = [];
+        // Боевой стиль
+        this.fightingStyle = null;
     }
 
     setAttackSequence(sequence) {
@@ -186,6 +258,17 @@ class Fighter {
         // Сбрасываем перки и вероятности критов
         this.activePerks = [];
         this.critChance = { ...DEFAULT_CRIT_CHANCE };
+        // Восстанавливаем эффект боевого стиля
+        if (this.fightingStyle) {
+            this.fightingStyle.apply(this);
+        }
+    }
+
+    setFightingStyle(style) {
+        this.fightingStyle = style;
+        if (style) {
+            style.apply(this);
+        }
     }
 
     hasPerk(perkId) {
@@ -421,13 +504,15 @@ class Game {
     constructor() {
         this.player = new Fighter('Игрок', true);
         this.enemy = new Fighter('Противник', false);
-        this.currentPhase = 'personality-selection'; // personality-selection, perk-ban, perk-selection, selection, playing, finished
+        this.currentPhase = 'personality-selection'; // personality-selection, fighting-style-selection, perk-ban, perk-selection, selection, playing, finished
         this.roundNumber = 1;
         this.isPlayerAttacking = true; // В первом раунде игрок атакует первым
         this.selectedActions = [];
         this.actionResults = []; // Результаты действий для отображения на пиктограммах
         this.isTieRound = false;
         this.opponentPersonality = null; // Характер оппонента
+        this.playerFightingStyle = null; // Выбранный боевой стиль игрока
+        this.enemyFightingStyle = null; // Случайный боевой стиль противника
         this.playerPerks = []; // Выбранные перки игрока (массив)
         this.enemyPerks = []; // Перки противника (массив)
         this.playerPerkSelectionStep = 0; // Шаг выбора перка игрока (0 - первый выбор, 1 - второй выбор)
@@ -459,6 +544,11 @@ class Game {
         this.personalityPersistentBtn = document.getElementById('personality-persistent-btn');
         this.personalityAdaptiveBtn = document.getElementById('personality-adaptive-btn');
         
+        // Экран выбора боевого стиля
+        this.fightingStyleSelectionContainer = document.getElementById('fighting-style-selection-container');
+        this.fightingStyleBoxingBtn = document.getElementById('fighting-style-boxing-btn');
+        this.fightingStyleMuayThaiBtn = document.getElementById('fighting-style-muay-thai-btn');
+        
         // Экран выбора перка
         this.perkSelectionContainer = document.getElementById('perk-selection-container');
         this.perkHeadHunterBtn = document.getElementById('perk-head-hunter-btn');
@@ -475,6 +565,10 @@ class Game {
         // Отображение активных перков
         this.playerPerkDisplay = document.getElementById('player-perk-display');
         this.enemyPerkDisplay = document.getElementById('enemy-perk-display');
+        
+        // Отображение боевого стиля
+        this.playerFightingStyleDisplay = document.getElementById('player-fighting-style-display');
+        this.enemyFightingStyleDisplay = document.getElementById('enemy-fighting-style-display');
         
         // Полоски здоровья
         this.playerHealthBar = document.getElementById('player-health-bar');
@@ -503,6 +597,14 @@ class Game {
         this.personalityRandomBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.RANDOM));
         this.personalityPersistentBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.PERSISTENT));
         this.personalityAdaptiveBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.ADAPTIVE));
+        
+        // Обработчики выбора боевого стиля
+        if (this.fightingStyleBoxingBtn) {
+            this.fightingStyleBoxingBtn.addEventListener('click', () => this.selectFightingStyle(FIGHTING_STYLES.BOXING));
+        }
+        if (this.fightingStyleMuayThaiBtn) {
+            this.fightingStyleMuayThaiBtn.addEventListener('click', () => this.selectFightingStyle(FIGHTING_STYLES.MUAY_THAI));
+        }
         
         // Обработчики выбора/бана перка (работают в зависимости от фазы)
         this.perkHeadHunterBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.HEAD_HUNTER));
@@ -533,11 +635,39 @@ class Game {
             return;
         }
 
+        // Проверяем ограничения боевого стиля (только в фазе атаки)
+        if (this.isPlayerAttacking && this.player.fightingStyle) {
+            if (!this.player.fightingStyle.canSelectAction(action, this.selectedActions, this.isPlayerAttacking)) {
+                return; // Нельзя выбрать это действие
+            }
+        }
+
         this.selectedActions.push(action);
         this.updateSelectedActionsDisplay();
         
+        // Обновляем состояние кнопок с учетом ограничений стиля
+        this.updateActionButtonsState();
+        
         if (this.selectedActions.length >= ACTIONS_PER_PHASE) {
             this.startPhase();
+        }
+    }
+
+    updateActionButtonsState() {
+        // Для Boxing: блокируем кнопку low, если уже выбрана атака в ноги (только в фазе атаки)
+        if (this.isPlayerAttacking && this.player.fightingStyle && this.player.fightingStyle.id === 'boxing') {
+            if (this.selectedActions.includes('low')) {
+                this.btnLow.disabled = true;
+            } else {
+                this.btnLow.disabled = false;
+            }
+        } else {
+            // В остальных случаях кнопки активны (если не достигнут лимит)
+            if (this.selectedActions.length < ACTIONS_PER_PHASE) {
+                [this.btnHigh, this.btnMid, this.btnLow].forEach(btn => {
+                    btn.disabled = false;
+                });
+            }
         }
     }
 
@@ -618,13 +748,44 @@ class Game {
     }
 
     generateEnemySequence() {
+        let sequence;
         if (this.opponentPersonality === OPPONENT_PERSONALITY.PERSISTENT) {
-            return this.generatePersistentSequence();
+            sequence = this.generatePersistentSequence();
         } else if (this.opponentPersonality === OPPONENT_PERSONALITY.ADAPTIVE) {
-            return this.generateAdaptiveSequence();
+            sequence = this.generateAdaptiveSequence();
         } else {
-            return this.generateRandomSequence();
+            sequence = this.generateRandomSequence();
         }
+        
+        // Применяем ограничения боевого стиля противника
+        return this.applyFightingStyleRestrictions(sequence);
+    }
+
+    applyFightingStyleRestrictions(sequence) {
+        // Если противник атакует и имеет стиль Boxing, применяем ограничение
+        const isEnemyAttacking = !this.isPlayerAttacking;
+        if (isEnemyAttacking && this.enemy.fightingStyle && this.enemy.fightingStyle.id === 'boxing') {
+            // Boxing: не может провести серию из 2+ атак в ноги
+            const restrictedSequence = [];
+            let hasLowAttack = false;
+            
+            for (const action of sequence) {
+                if (action === 'low' && hasLowAttack) {
+                    // Уже была атака в ноги, выбираем случайную другую зону
+                    const otherZones = ['high', 'mid'];
+                    restrictedSequence.push(otherZones[Math.floor(Math.random() * otherZones.length)]);
+                } else {
+                    restrictedSequence.push(action);
+                    if (action === 'low') {
+                        hasLowAttack = true;
+                    }
+                }
+            }
+            
+            return restrictedSequence;
+        }
+        
+        return sequence;
     }
 
     generateRandomSequence() {
@@ -958,7 +1119,17 @@ class Game {
                 let damage = this.enemy.calculateDamage(this.player.damage);
                 
                 // Проверяем критический удар
-                const isCritical = this.player.checkCriticalHit(playerAction);
+                let isCritical = this.player.checkCriticalHit(playerAction);
+                
+                // Проверяем эффект боевого стиля Muay Thai противника (только для критов в ноги)
+                if (isCritical && playerAction === 'low' && this.enemy.fightingStyle && this.enemy.fightingStyle.id === 'muay_thai') {
+                    isCritical = this.enemy.fightingStyle.handleIncomingCrit(playerAction, isCritical);
+                    if (!isCritical) {
+                        // Muay Thai противника превратил крит в обычный удар
+                        this.showActionText('MUAY THAI DEFENSE!', 'hit critical');
+                    }
+                }
+                
                 if (isCritical) {
                     // Проверяем, есть ли у противника перк CritDeflector
                     const hasCritDeflector = this.enemy.hasPerk('crit_deflector');
@@ -999,7 +1170,17 @@ class Game {
                 let damage = this.player.calculateDamage(this.enemy.damage);
                 
                 // Проверяем критический удар
-                const isCritical = this.enemy.checkCriticalHit(enemyAction);
+                let isCritical = this.enemy.checkCriticalHit(enemyAction);
+                
+                // Проверяем эффект боевого стиля Muay Thai (только для критов в ноги)
+                if (isCritical && enemyAction === 'low' && this.player.fightingStyle && this.player.fightingStyle.id === 'muay_thai') {
+                    isCritical = this.player.fightingStyle.handleIncomingCrit(enemyAction, isCritical);
+                    if (!isCritical) {
+                        // Muay Thai превратил крит в обычный удар
+                        this.showActionText('MUAY THAI DEFENSE!', 'hit critical');
+                    }
+                }
+                
                 if (isCritical) {
                     // Проверяем, есть ли у игрока перк CritDeflector
                     const hasCritDeflector = this.player.hasPerk('crit_deflector');
@@ -1160,6 +1341,14 @@ class Game {
             this.enemy.applyPerks(this.enemyPerks);
         }
         
+        // Восстанавливаем боевые стили после сброса
+        if (this.playerFightingStyle) {
+            this.player.setFightingStyle(this.playerFightingStyle);
+        }
+        if (this.enemyFightingStyle) {
+            this.enemy.setFightingStyle(this.enemyFightingStyle);
+        }
+        
         this.updateHealthBars();
         this.updatePerkDisplays();
         this.startNewRound();
@@ -1185,10 +1374,11 @@ class Game {
             'Выберите 3 атаки' : 'Выберите 3 блока';
         this.phaseLabel.textContent = phaseText;
         
-        // Включаем кнопки
+        // Включаем кнопки и обновляем их состояние
         [this.btnHigh, this.btnMid, this.btnLow].forEach(btn => {
             btn.disabled = false;
         });
+        this.updateActionButtonsState();
     }
 
     endGame(playerWon) {
@@ -1221,6 +1411,35 @@ class Game {
         
         // Сбрасываем статистику паттернов при выборе новой личности
         this.patternAnalyzer.reset();
+        
+        // Показываем экран выбора боевого стиля (если он есть)
+        if (this.fightingStyleSelectionContainer) {
+            this.showFightingStyleSelection();
+        } else {
+            // Если экран выбора стиля отсутствует, сразу переходим к бану перка
+            this.showPerkBan();
+        }
+    }
+
+    showFightingStyleSelection() {
+        this.currentPhase = 'fighting-style-selection';
+        this.personalitySelectionContainer.style.display = 'none';
+        if (this.fightingStyleSelectionContainer) {
+            this.fightingStyleSelectionContainer.style.display = 'block';
+        }
+        this.controlsContainer.style.display = 'none';
+        this.restartContainer.style.display = 'none';
+    }
+
+    selectFightingStyle(style) {
+        this.playerFightingStyle = style;
+        this.player.setFightingStyle(style);
+        if (this.fightingStyleSelectionContainer) {
+            this.fightingStyleSelectionContainer.style.display = 'none';
+        }
+        
+        // Обновляем отображение боевого стиля
+        this.updateFightingStyleDisplay();
         
         // Показываем экран бана перка
         this.showPerkBan();
@@ -1431,10 +1650,16 @@ class Game {
             this.playerPerkSelectionStep = 1;
             this.showPerkSelection();
         } else {
-            // Оба перка выбраны, даем противнику два случайных перка
+            // Оба перка выбраны, даем противнику два случайных перка и случайный стиль
             this.enemyPerks = this.getRandomEnemyPerks();
             if (this.enemyPerks && this.enemyPerks.length > 0) {
                 this.enemy.applyPerks(this.enemyPerks);
+            }
+            
+            // Выбираем случайный боевой стиль для противника
+            this.enemyFightingStyle = this.getRandomEnemyFightingStyle();
+            if (this.enemyFightingStyle) {
+                this.enemy.setFightingStyle(this.enemyFightingStyle);
             }
             
             // Скрываем экран выбора перка и показываем игру
@@ -1442,7 +1667,7 @@ class Game {
             this.fightersContainer.style.display = 'flex';
             this.currentPhase = 'selection';
             
-            // Обновляем отображение перков
+            // Обновляем отображение перков и боевых стилей
             this.updatePerkDisplays();
             
             // Инициализируем игру
@@ -1472,6 +1697,16 @@ class Game {
         }
         
         return selectedPerks;
+    }
+
+    getRandomEnemyFightingStyle() {
+        // Выбираем случайный боевой стиль из доступных
+        if (ALL_FIGHTING_STYLES.length === 0) {
+            return null;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * ALL_FIGHTING_STYLES.length);
+        return ALL_FIGHTING_STYLES[randomIndex];
     }
 
     updatePerkDisplays() {
@@ -1514,6 +1749,73 @@ class Game {
             this.enemyPerkDisplay.classList.remove('active');
             this.enemyPerkDisplay.title = '';
         }
+        
+        // Обновляем отображение боевых стилей
+        this.updateFightingStyleDisplay();
+    }
+
+    updateFightingStyleDisplay() {
+        // Обновляем отображение боевого стиля игрока
+        if (this.playerFightingStyleDisplay) {
+            if (this.playerFightingStyle) {
+                this.playerFightingStyleDisplay.textContent = this.playerFightingStyle.name;
+                this.playerFightingStyleDisplay.classList.add('active');
+                
+                // Формируем описание для tooltip
+                let description = `${this.playerFightingStyle.description}\n\n`;
+                
+                if (this.playerFightingStyle.advantages && this.playerFightingStyle.advantages.length > 0) {
+                    description += 'Преимущества:\n';
+                    this.playerFightingStyle.advantages.forEach(adv => {
+                        description += `• ${adv}\n`;
+                    });
+                }
+                
+                if (this.playerFightingStyle.disadvantages && this.playerFightingStyle.disadvantages.length > 0) {
+                    description += '\nНедостатки:\n';
+                    this.playerFightingStyle.disadvantages.forEach(dis => {
+                        description += `• ${dis}\n`;
+                    });
+                }
+                
+                this.playerFightingStyleDisplay.title = description.trim();
+            } else {
+                this.playerFightingStyleDisplay.textContent = '';
+                this.playerFightingStyleDisplay.classList.remove('active');
+                this.playerFightingStyleDisplay.title = '';
+            }
+        }
+        
+        // Обновляем отображение боевого стиля противника
+        if (this.enemyFightingStyleDisplay) {
+            if (this.enemyFightingStyle) {
+                this.enemyFightingStyleDisplay.textContent = this.enemyFightingStyle.name;
+                this.enemyFightingStyleDisplay.classList.add('active');
+                
+                // Формируем описание для tooltip
+                let description = `${this.enemyFightingStyle.description}\n\n`;
+                
+                if (this.enemyFightingStyle.advantages && this.enemyFightingStyle.advantages.length > 0) {
+                    description += 'Преимущества:\n';
+                    this.enemyFightingStyle.advantages.forEach(adv => {
+                        description += `• ${adv}\n`;
+                    });
+                }
+                
+                if (this.enemyFightingStyle.disadvantages && this.enemyFightingStyle.disadvantages.length > 0) {
+                    description += '\nНедостатки:\n';
+                    this.enemyFightingStyle.disadvantages.forEach(dis => {
+                        description += `• ${dis}\n`;
+                    });
+                }
+                
+                this.enemyFightingStyleDisplay.title = description.trim();
+            } else {
+                this.enemyFightingStyleDisplay.textContent = '';
+                this.enemyFightingStyleDisplay.classList.remove('active');
+                this.enemyFightingStyleDisplay.title = '';
+            }
+        }
     }
 
     restart() {
@@ -1524,6 +1826,10 @@ class Game {
         this.isPlayerAttacking = true;
         this.selectedActions = [];
         this.isTieRound = false;
+        this.playerFightingStyle = null;
+        this.player.fightingStyle = null;
+        this.enemyFightingStyle = null;
+        this.enemy.fightingStyle = null;
         this.playerPerks = [];
         this.enemyPerks = [];
         this.playerPerkSelectionStep = 0;

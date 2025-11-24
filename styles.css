@@ -477,6 +477,93 @@ h1 {
     font-style: italic;
 }
 
+/* Экран выбора боевого стиля */
+.fighting-style-selection-container {
+    text-align: center;
+    padding: 20px 20px;
+    display: none;
+}
+
+.fighting-style-selection-title {
+    font-size: 1.8em;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.fighting-style-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.fighting-style-btn {
+    width: 100%;
+    padding: 30px;
+    border: 3px solid #333;
+    border-radius: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.fighting-style-btn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    border-color: #4CAF50;
+}
+
+.fighting-style-btn:active {
+    transform: translateY(-2px);
+}
+
+.fighting-style-btn-title {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+.fighting-style-btn-description {
+    font-size: 1em;
+    opacity: 0.9;
+    font-style: italic;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.fighting-style-advantages {
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+
+.fighting-style-disadvantages {
+    margin-top: 10px;
+}
+
+.advantage {
+    font-size: 0.9em;
+    color: #90EE90;
+    margin-bottom: 5px;
+    text-align: left;
+}
+
+.disadvantage {
+    font-size: 0.9em;
+    color: #FFB6C1;
+    margin-bottom: 5px;
+    text-align: left;
+}
+
 /* Экран выбора перка */
 .perk-selection-container {
     text-align: center;
@@ -556,6 +643,23 @@ h1 {
 
 .enemy-section .perk-display.active {
     color: #f44336;
+}
+
+.fighting-style-display {
+    text-align: center;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    min-height: 20px;
+    font-size: 0.85em;
+    color: #666;
+    font-style: italic;
+    cursor: help;
+}
+
+.fighting-style-display.active {
+    color: #764ba2;
+    font-weight: bold;
+    font-style: normal;
 }
 
 /* Оптимизация для мобильных устройств */
