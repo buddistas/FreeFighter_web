@@ -1,5 +1,5 @@
 // Симулятор турнира FreeFighter с комбинациями перков
-// Проводит круговые турниры между 36 бойцами с уникальными комбинациями из 2 перков
+// Проводит круговые турниры между 45 бойцами с уникальными комбинациями из 2 перков (10 перков, включая новый Equalizer)
 
 // Константы игры
 const TIE_ROUND_HP = 2;
@@ -94,6 +94,13 @@ const PERKS = {
         'Добивание',
         'Если у противника на конец раунда осталось 1 HP, уменьшает его HP на 1',
         null
+    ),
+    EQUALIZER: new Perk(
+        'equalizer',
+        'Equalizer',
+        'Уравнитель',
+        'Если на конец раунда у владельца перка количество HP на 4+ меньше чем у противника, противник лишается 2 HP',
+        null
     )
 };
 
@@ -106,7 +113,8 @@ const ALL_PERKS = [
     PERKS.CRIT_DEFLECTOR,
     PERKS.LUCKER,
     PERKS.BLOCK_MASTER,
-    PERKS.FINISH_HIM
+    PERKS.FINISH_HIM,
+    PERKS.EQUALIZER
 ];
 
 // Генерация всех уникальных комбинаций из 2 перков
@@ -348,6 +356,18 @@ class Fight {
                 this.fighter1.takeDamage(1);
             }
 
+            // Проверяем перк Equalizer в конце раунда (после FinishHim)
+            // Проверяем для Fighter1
+            const hasEqualizer1 = this.fighter1.hasPerk('equalizer');
+            if (hasEqualizer1 && this.fighter2.hp - this.fighter1.hp >= 4) {
+                this.fighter2.takeDamage(2);
+            }
+            // Проверяем для Fighter2
+            const hasEqualizer2 = this.fighter2.hasPerk('equalizer');
+            if (hasEqualizer2 && this.fighter1.hp - this.fighter2.hp >= 4) {
+                this.fighter1.takeDamage(2);
+            }
+
             // Проверяем окончание боя ТОЛЬКО после завершения обеих фаз раунда
             const fighter1Dead = this.fighter1.hp <= 0;
             const fighter2Dead = this.fighter2.hp <= 0;
@@ -478,6 +498,18 @@ class Fight {
 
             // FinishHim не активируется в дополнительных раундах
 
+            // Проверяем перк Equalizer в конце раунда (после обеих фаз)
+            // Проверяем для Fighter1
+            const hasEqualizer1 = this.fighter1.hasPerk('equalizer');
+            if (hasEqualizer1 && this.fighter2.hp - this.fighter1.hp >= 4) {
+                this.fighter2.takeDamage(2);
+            }
+            // Проверяем для Fighter2
+            const hasEqualizer2 = this.fighter2.hasPerk('equalizer');
+            if (hasEqualizer2 && this.fighter1.hp - this.fighter2.hp >= 4) {
+                this.fighter1.takeDamage(2);
+            }
+
             // Проверяем окончание боя ТОЛЬКО после завершения обеих фаз раунда
             const fighter1Dead = this.fighter1.hp <= 0;
             const fighter2Dead = this.fighter2.hp <= 0;
@@ -584,7 +616,7 @@ const endTournament = 1000;
 const totalTournaments = endTournament - startTournament + 1;
 
 console.log(`Начинаем проведение ${totalTournaments} турниров (${startTournament}-${endTournament})...`);
-console.log(`Количество бойцов в каждом турнире: 36 (все возможные комбинации из 2 перков)`);
+console.log(`Количество бойцов в каждом турнире: 45 (все возможные комбинации из 10 перков по 2)`);
 console.log('Это может занять некоторое время...\n');
 
 const startTime = Date.now();
@@ -613,10 +645,11 @@ const sortedStats = Object.values(globalStats).sort((a, b) => {
 });
 
 // Генерируем Markdown таблицу
-let md = `# Аналитика комбинаций перков (${totalTournaments} турниров)\n\n`;
+let md = `# Аналитика комбинаций перков с обновленным перком Equalizer v2 (${totalTournaments} турниров)\n\n`;
 md += `## Итоговая статистика по комбинациям из 2 перков\n\n`;
-md += `**Количество бойцов в каждом турнире:** 36 (все возможные комбинации из 9 перков по 2)\n\n`;
-md += `**Количество боев на каждого бойца:** ${totalTournaments * 35} боев (круговая система: каждый с каждым)\n\n`;
+md += `**Новый перк:** Equalizer - Если на конец раунда у владельца перка количество HP на 4+ меньше чем у противника, противник лишается 2 HP\n\n`;
+md += `**Количество бойцов в каждом турнире:** 45 (все возможные комбинации из 10 перков по 2)\n\n`;
+md += `**Количество боев на каждого бойца:** ${totalTournaments * 44} боев (круговая система: каждый с каждым)\n\n`;
 md += `| Место | Комбинация перков | Победы | Ничьи | Поражения | Очки | Средние очки за турнир | Винрейт |\n`;
 md += `|-------|-------------------|--------|-------|-----------|------|------------------------|----------|\n`;
 
@@ -628,13 +661,13 @@ sortedStats.forEach((stat, index) => {
 });
 
 // Сохраняем файл
-const outputFile = path.join(__dirname, 'analytics-dual-perks.md');
+const outputFile = path.join(__dirname, 'analytics-dual-perks-equalizer-v2.md');
 fs.writeFileSync(outputFile, md, 'utf8');
 
-console.log(`\nАналитика создана: analytics-dual-perks.md`);
+console.log(`\nАналитика создана: analytics-dual-perks-equalizer-v2.md`);
 console.log(`Обработано турниров: ${totalTournaments}`);
 console.log(`Уникальных комбинаций: ${sortedStats.length}`);
-console.log(`Боев на каждого бойца: ${totalTournaments * 35}`);
+console.log(`Боев на каждого бойца: ${totalTournaments * 44}`);
 
 // Выводим краткую статистику
 console.log('\n=== Топ-10 комбинаций по винрейту ===');

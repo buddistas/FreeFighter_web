@@ -109,10 +109,17 @@ const PERKS = {
         'Добивание',
         'Если у противника на конец раунда осталось 1 HP, уменьшает его HP на 1',
         null // Этот перк работает в конце раунда, не в дополнительных раундах
+    ),
+    EQUALIZER: new Perk(
+        'equalizer',
+        'Equalizer',
+        'Уравнитель',
+        'Если на конец раунда у владельца перка количество HP на 4+ меньше чем у противника, противник лишается 2 HP',
+        null // Этот перк работает в конце раунда
     )
 };
 
-const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER, PERKS.TIE_BREAKER, PERKS.HP_BOOST, PERKS.CRIT_DEFLECTOR, PERKS.LUCKER, PERKS.BLOCK_MASTER, PERKS.FINISH_HIM];
+const ALL_PERKS = [PERKS.HEAD_HUNTER, PERKS.BODY_HUNTER, PERKS.LEG_HUNTER, PERKS.TIE_BREAKER, PERKS.HP_BOOST, PERKS.CRIT_DEFLECTOR, PERKS.LUCKER, PERKS.BLOCK_MASTER, PERKS.FINISH_HIM, PERKS.EQUALIZER];
 const ENEMY_PERKS_COUNT = 1; // Количество случайных перков для противника
 
 // Пути к изображениям
@@ -437,6 +444,7 @@ class Game {
         this.perkLuckerBtn = document.getElementById('perk-lucker-btn');
         this.perkBlockMasterBtn = document.getElementById('perk-block-master-btn');
         this.perkFinishHimBtn = document.getElementById('perk-finish-him-btn');
+        this.perkEqualizerBtn = document.getElementById('perk-equalizer-btn');
         
         // Отображение активных перков
         this.playerPerkDisplay = document.getElementById('player-perk-display');
@@ -841,6 +849,24 @@ class Game {
                     await this.delay(1500);
                 }
             }
+
+            // Проверяем перк Equalizer (работает в обычных и дополнительных раундах)
+            // Проверяем перк Equalizer для игрока
+            const hasEqualizerPlayer = this.player.activePerk && this.player.activePerk.id === 'equalizer';
+            if (hasEqualizerPlayer && this.enemy.hp - this.player.hp >= 4) {
+                this.enemy.takeDamage(2);
+                this.showActionText('Equalizer!', 'hit critical');
+                this.updateHealthBars();
+                await this.delay(1500);
+            }
+            // Проверяем перк Equalizer для противника
+            const hasEqualizerEnemy = this.enemy.activePerk && this.enemy.activePerk.id === 'equalizer';
+            if (hasEqualizerEnemy && this.player.hp - this.enemy.hp >= 4) {
+                this.player.takeDamage(2);
+                this.showActionText('Equalizer!', 'hit critical');
+                this.updateHealthBars();
+                await this.delay(1500);
+            }
             // Проверяем условия победы
             this.checkGameEnd();
         } else {
@@ -1200,6 +1226,12 @@ class Game {
         const finishHimDesc = this.perkFinishHimBtn.querySelector('.perk-btn-description');
         if (finishHimTitle) finishHimTitle.textContent = PERKS.FINISH_HIM.name;
         if (finishHimDesc) finishHimDesc.textContent = PERKS.FINISH_HIM.fullName;
+        
+        // Equalizer
+        const equalizerTitle = this.perkEqualizerBtn.querySelector('.perk-btn-title');
+        const equalizerDesc = this.perkEqualizerBtn.querySelector('.perk-btn-description');
+        if (equalizerTitle) equalizerTitle.textContent = PERKS.EQUALIZER.name;
+        if (equalizerDesc) equalizerDesc.textContent = PERKS.EQUALIZER.fullName;
     }
 
     selectPerk(perk) {
