@@ -403,6 +403,7 @@ class Game {
         this.roundNumber = 1;
         this.isPlayerAttacking = true; // В первом раунде игрок атакует первым
         this.selectedActions = [];
+        this.actionResults = []; // Результаты действий для отображения на пиктограммах
         this.isTieRound = false;
         this.opponentPersonality = null; // Характер оппонента
         this.playerPerk = null; // Выбранный перк игрока
@@ -517,20 +518,43 @@ class Game {
 
     updateSelectedActionsDisplay() {
         this.draftIconsContainer.innerHTML = '';
+        this.actionResults = []; // Сбрасываем результаты при новом выборе
         // Выбираем правильные изображения в зависимости от фазы
         const imageType = this.isPlayerAttacking ? 'attack' : 'block';
         this.selectedActions.forEach((action, index) => {
+            const iconWrapper = document.createElement('div');
+            iconWrapper.className = 'draft-icon-wrapper';
+            
             const icon = document.createElement('img');
             icon.className = 'draft-icon';
             icon.src = IMAGE_PATHS[imageType][action];
             icon.alt = action;
-            // Добавляем пиктограмму сразу, чтобы она заняла правильную позицию
-            this.draftIconsContainer.appendChild(icon);
+            
+            iconWrapper.appendChild(icon);
+            this.draftIconsContainer.appendChild(iconWrapper);
+            
             // Добавляем небольшую задержку для анимации появления
             setTimeout(() => {
                 icon.style.animation = 'iconAppear 0.3s ease forwards';
             }, index * 100);
         });
+    }
+    
+    updateDraftIconResult(index, success) {
+        const iconWrappers = this.draftIconsContainer.querySelectorAll('.draft-icon-wrapper');
+        if (iconWrappers[index]) {
+            // Удаляем предыдущий индикатор, если есть
+            const existingIndicator = iconWrappers[index].querySelector('.draft-result-indicator');
+            if (existingIndicator) {
+                existingIndicator.remove();
+            }
+            
+            // Создаем новый индикатор
+            const indicator = document.createElement('div');
+            indicator.className = `draft-result-indicator ${success ? 'success' : 'failure'}`;
+            indicator.textContent = success ? '✓' : '✗';
+            iconWrappers[index].appendChild(indicator);
+        }
     }
 
     startPhase() {
@@ -772,6 +796,17 @@ class Game {
             const enemyAction = enemyActions[i];
             
             const result = await this.executeAction(playerAction, enemyAction, i);
+            
+            // Определяем успешность действия игрока и обновляем индикатор
+            let playerSuccess = false;
+            if (this.isPlayerAttacking) {
+                // Игрок атакует - успех если попал (не заблокирован)
+                playerSuccess = !result.enemyBlocked;
+            } else {
+                // Игрок защищается - успех если заблокировал
+                playerSuccess = result.playerBlocked;
+            }
+            this.updateDraftIconResult(i, playerSuccess);
             
             // Отслеживаем последовательные блоки для BlockMaster
             if (this.isPlayerAttacking) {
@@ -1108,6 +1143,7 @@ class Game {
     startNewRound() {
         this.currentPhase = 'selection';
         this.selectedActions = [];
+        this.actionResults = [];
         this.selectedList.innerHTML = '';
         this.draftIconsContainer.innerHTML = '';
         
