@@ -1187,11 +1187,8 @@ class Game {
                 // Попадание! Урон = урон атакующего - защита защищающегося
                 let damage = this.enemy.calculateDamage(this.player.damage);
                 
-                // Проверяем критический удар (используем текущий бонус)
+                // Проверяем критический удар с текущим бонусом (если есть)
                 let isCritical = this.player.checkCriticalHit(playerAction);
-                
-                // Увеличиваем бонус крита для кикбоксинга при успешном ударе (для следующего удара)
-                this.player.increaseCritBonus();
                 
                 // Проверяем эффект боевого стиля Muay Thai противника (только для критов в ноги)
                 if (isCritical && playerAction === 'low' && this.enemy.fightingStyle && this.enemy.fightingStyle.id === 'muay_thai') {
@@ -1203,15 +1200,16 @@ class Game {
                 }
                 
                 if (isCritical) {
+                    // Крит произошел - сбрасываем бонус крита для кикбоксинга
+                    this.player.resetCritBonus();
+                    
                     // Проверяем, есть ли у противника перк CritDeflector
                     const hasCritDeflector = this.enemy.hasPerk('crit_deflector');
                     if (hasCritDeflector && Math.random() < 0.5) {
                         // Перк сработал - крит превращается в обычный удар
                         this.showActionText('CRIT DEFLECTED!', 'hit critical');
                     } else {
-                        // Крит прошел - сбрасываем бонус крита для кикбоксинга
-                        this.player.resetCritBonus();
-                        
+                        // Крит прошел
                         // Проверяем перк Lucker у атакующего
                         const hasLucker = this.player.hasPerk('lucker');
                         if (hasLucker && Math.random() < 0.5) {
@@ -1225,6 +1223,9 @@ class Game {
                         }
                     }
                 } else {
+                    // Крита не было - увеличиваем бонус крита для кикбоксинга
+                    // Бонус накапливается только при успешных ударах без крита
+                    this.player.increaseCritBonus();
                     this.showActionText('HIT', 'hit');
                 }
                 
@@ -1244,11 +1245,8 @@ class Game {
                 // Попадание! Урон = урон атакующего - защита защищающегося
                 let damage = this.player.calculateDamage(this.enemy.damage);
                 
-                // Проверяем критический удар (используем текущий бонус)
+                // Проверяем критический удар с текущим бонусом (если есть)
                 let isCritical = this.enemy.checkCriticalHit(enemyAction);
-                
-                // Увеличиваем бонус крита для кикбоксинга при успешном ударе (для следующего удара)
-                this.enemy.increaseCritBonus();
                 
                 // Проверяем эффект боевого стиля Muay Thai (только для критов в ноги)
                 if (isCritical && enemyAction === 'low' && this.player.fightingStyle && this.player.fightingStyle.id === 'muay_thai') {
@@ -1260,15 +1258,16 @@ class Game {
                 }
                 
                 if (isCritical) {
+                    // Крит произошел - сбрасываем бонус крита для кикбоксинга
+                    this.enemy.resetCritBonus();
+                    
                     // Проверяем, есть ли у игрока перк CritDeflector
                     const hasCritDeflector = this.player.hasPerk('crit_deflector');
                     if (hasCritDeflector && Math.random() < 0.5) {
                         // Перк сработал - крит превращается в обычный удар
                         this.showActionText('CRIT DEFLECTED!', 'hit critical');
                     } else {
-                        // Крит прошел - сбрасываем бонус крита для кикбоксинга
-                        this.enemy.resetCritBonus();
-                        
+                        // Крит прошел
                         // Проверяем перк Lucker у атакующего
                         const hasLucker = this.enemy.hasPerk('lucker');
                         if (hasLucker && Math.random() < 0.5) {
@@ -1282,6 +1281,9 @@ class Game {
                         }
                     }
                 } else {
+                    // Крита не было - увеличиваем бонус крита для кикбоксинга
+                    // Бонус накапливается только при успешных ударах без крита
+                    this.enemy.increaseCritBonus();
                     this.showActionText('HIT', 'hit');
                 }
                 
