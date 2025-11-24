@@ -58,6 +58,13 @@ class FightingStyle {
             if (action === 'low' && selectedActions.includes('low')) {
                 return false;
             }
+        } else if (this.id === 'kickboxing' && isAttacking) {
+            // Kickboxing: не может провести серию из 3 атак в ноги (максимум 2)
+            // Считаем количество уже выбранных ударов в ноги
+            const lowCount = selectedActions.filter(a => a === 'low').length;
+            if (action === 'low' && lowCount >= 2) {
+                return false; // Уже выбрано 2 удара в ноги, блокируем третий
+            }
         }
         return true;
     }
@@ -89,10 +96,17 @@ const FIGHTING_STYLES = {
         'Тайский бокс',
         ['Удвоенная вероятность крита в ноги (+5%)', '50% шанс превратить пропущенный крит в ноги в обычный удар'],
         []
+    ),
+    KICKBOXING: new FightingStyle(
+        'kickboxing',
+        'Kickboxing',
+        'Кикбоксинг',
+        ['Каждый успешный удар повышает шанс крита на 10% для всех зон'],
+        ['Не может провести серию из 3 атак в ноги (максимум 2)']
     )
 };
 
-const ALL_FIGHTING_STYLES = [FIGHTING_STYLES.BOXING, FIGHTING_STYLES.MUAY_THAI];
+const ALL_FIGHTING_STYLES = [FIGHTING_STYLES.BOXING, FIGHTING_STYLES.MUAY_THAI, FIGHTING_STYLES.KICKBOXING];
 
 // Класс перка
 class Perk {
@@ -225,6 +239,8 @@ class Fighter {
         this.activePerks = [];
         // Боевой стиль
         this.fightingStyle = null;
+        // Бонус крита для кикбоксинга (накапливается при успешных ударах)
+        this.critBonus = 0;
     }
 
     setAttackSequence(sequence) {
@@ -246,8 +262,28 @@ class Fighter {
 
     checkCriticalHit(action) {
         // Проверяем вероятность критического удара для данной зоны
-        const chance = this.critChance[action] || 0;
+        let chance = this.critChance[action] || 0;
+        
+        // Для кикбоксинга добавляем накопленный бонус ко всем зонам
+        if (this.fightingStyle && this.fightingStyle.id === 'kickboxing') {
+            chance += this.critBonus;
+        }
+        
         return Math.random() < chance;
+    }
+    
+    // Увеличивает бонус крита для кикбоксинга при успешном ударе
+    increaseCritBonus() {
+        if (this.fightingStyle && this.fightingStyle.id === 'kickboxing') {
+            this.critBonus += 0.10; // Увеличиваем на 10%
+        }
+    }
+    
+    // Сбрасывает бонус крита для кикбоксинга
+    resetCritBonus() {
+        if (this.fightingStyle && this.fightingStyle.id === 'kickboxing') {
+            this.critBonus = 0;
+        }
     }
 
     reset(hp) {
@@ -258,6 +294,8 @@ class Fighter {
         // Сбрасываем перки и вероятности критов
         this.activePerks = [];
         this.critChance = { ...DEFAULT_CRIT_CHANCE };
+        // Сбрасываем бонус крита для кикбоксинга
+        this.critBonus = 0;
         // Восстанавливаем эффект боевого стиля
         if (this.fightingStyle) {
             this.fightingStyle.apply(this);
@@ -548,6 +586,7 @@ class Game {
         this.fightingStyleSelectionContainer = document.getElementById('fighting-style-selection-container');
         this.fightingStyleBoxingBtn = document.getElementById('fighting-style-boxing-btn');
         this.fightingStyleMuayThaiBtn = document.getElementById('fighting-style-muay-thai-btn');
+        this.fightingStyleKickboxingBtn = document.getElementById('fighting-style-kickboxing-btn');
         
         // Экран выбора перка
         this.perkSelectionContainer = document.getElementById('perk-selection-container');
@@ -605,6 +644,9 @@ class Game {
         if (this.fightingStyleMuayThaiBtn) {
             this.fightingStyleMuayThaiBtn.addEventListener('click', () => this.selectFightingStyle(FIGHTING_STYLES.MUAY_THAI));
         }
+        if (this.fightingStyleKickboxingBtn) {
+            this.fightingStyleKickboxingBtn.addEventListener('click', () => this.selectFightingStyle(FIGHTING_STYLES.KICKBOXING));
+        }
         
         // Обработчики выбора/бана перка (работают в зависимости от фазы)
         this.perkHeadHunterBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.HEAD_HUNTER));
@@ -657,6 +699,14 @@ class Game {
         // Для Boxing: блокируем кнопку low, если уже выбрана атака в ноги (только в фазе атаки)
         if (this.isPlayerAttacking && this.player.fightingStyle && this.player.fightingStyle.id === 'boxing') {
             if (this.selectedActions.includes('low')) {
+                this.btnLow.disabled = true;
+            } else {
+                this.btnLow.disabled = false;
+            }
+        } else if (this.isPlayerAttacking && this.player.fightingStyle && this.player.fightingStyle.id === 'kickboxing') {
+            // Для Kickboxing: блокируем кнопку low, если уже выбрано 2 удара в ноги
+            const lowCount = this.selectedActions.filter(a => a === 'low').length;
+            if (lowCount >= 2) {
                 this.btnLow.disabled = true;
             } else {
                 this.btnLow.disabled = false;
@@ -778,6 +828,25 @@ class Game {
                     restrictedSequence.push(action);
                     if (action === 'low') {
                         hasLowAttack = true;
+                    }
+                }
+            }
+            
+            return restrictedSequence;
+        } else if (isEnemyAttacking && this.enemy.fightingStyle && this.enemy.fightingStyle.id === 'kickboxing') {
+            // Kickboxing: не может провести серию из 3 атак в ноги (максимум 2)
+            const restrictedSequence = [];
+            let lowCount = 0;
+            
+            for (const action of sequence) {
+                if (action === 'low' && lowCount >= 2) {
+                    // Уже выбрано 2 удара в ноги, выбираем случайную другую зону
+                    const otherZones = ['high', 'mid'];
+                    restrictedSequence.push(otherZones[Math.floor(Math.random() * otherZones.length)]);
+                } else {
+                    restrictedSequence.push(action);
+                    if (action === 'low') {
+                        lowCount++;
                     }
                 }
             }
@@ -1118,8 +1187,11 @@ class Game {
                 // Попадание! Урон = урон атакующего - защита защищающегося
                 let damage = this.enemy.calculateDamage(this.player.damage);
                 
-                // Проверяем критический удар
+                // Проверяем критический удар (используем текущий бонус)
                 let isCritical = this.player.checkCriticalHit(playerAction);
+                
+                // Увеличиваем бонус крита для кикбоксинга при успешном ударе (для следующего удара)
+                this.player.increaseCritBonus();
                 
                 // Проверяем эффект боевого стиля Muay Thai противника (только для критов в ноги)
                 if (isCritical && playerAction === 'low' && this.enemy.fightingStyle && this.enemy.fightingStyle.id === 'muay_thai') {
@@ -1137,7 +1209,10 @@ class Game {
                         // Перк сработал - крит превращается в обычный удар
                         this.showActionText('CRIT DEFLECTED!', 'hit critical');
                     } else {
-                        // Крит прошел, проверяем перк Lucker у атакующего
+                        // Крит прошел - сбрасываем бонус крита для кикбоксинга
+                        this.player.resetCritBonus();
+                        
+                        // Проверяем перк Lucker у атакующего
                         const hasLucker = this.player.hasPerk('lucker');
                         if (hasLucker && Math.random() < 0.5) {
                             // Перк Lucker сработал - учетверяем урон
@@ -1169,8 +1244,11 @@ class Game {
                 // Попадание! Урон = урон атакующего - защита защищающегося
                 let damage = this.player.calculateDamage(this.enemy.damage);
                 
-                // Проверяем критический удар
+                // Проверяем критический удар (используем текущий бонус)
                 let isCritical = this.enemy.checkCriticalHit(enemyAction);
+                
+                // Увеличиваем бонус крита для кикбоксинга при успешном ударе (для следующего удара)
+                this.enemy.increaseCritBonus();
                 
                 // Проверяем эффект боевого стиля Muay Thai (только для критов в ноги)
                 if (isCritical && enemyAction === 'low' && this.player.fightingStyle && this.player.fightingStyle.id === 'muay_thai') {
@@ -1188,7 +1266,10 @@ class Game {
                         // Перк сработал - крит превращается в обычный удар
                         this.showActionText('CRIT DEFLECTED!', 'hit critical');
                     } else {
-                        // Крит прошел, проверяем перк Lucker у атакующего
+                        // Крит прошел - сбрасываем бонус крита для кикбоксинга
+                        this.enemy.resetCritBonus();
+                        
+                        // Проверяем перк Lucker у атакующего
                         const hasLucker = this.enemy.hasPerk('lucker');
                         if (hasLucker && Math.random() < 0.5) {
                             // Перк Lucker сработал - учетверяем урон
@@ -1360,6 +1441,10 @@ class Game {
         this.actionResults = [];
         this.selectedList.innerHTML = '';
         this.draftIconsContainer.innerHTML = '';
+        
+        // Сбрасываем бонус крита для кикбоксинга между раундами
+        this.player.resetCritBonus();
+        this.enemy.resetCritBonus();
         
         // Показываем кнопки выбора и скрываем область результатов
         this.controlsContainer.style.display = 'flex';
