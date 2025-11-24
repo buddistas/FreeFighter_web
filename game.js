@@ -41,12 +41,12 @@ class FightingStyle {
         }
 
         if (this.id === 'boxing') {
-            // Boxing: удваиваем вероятность крита в тело и голову
-            fighter.critChance.mid = DEFAULT_CRIT_CHANCE.mid * 2; // 5% -> 10%
-            fighter.critChance.high = DEFAULT_CRIT_CHANCE.high * 2; // 10% -> 20%
+            // Boxing: прибавляем базовое значение к вероятности крита в тело и голову
+            fighter.critChance.mid += DEFAULT_CRIT_CHANCE.mid; // 5% -> 10%
+            fighter.critChance.high += DEFAULT_CRIT_CHANCE.high; // 10% -> 20%
         } else if (this.id === 'muay_thai') {
-            // Muay Thai: удваиваем вероятность крита в ноги
-            fighter.critChance.low = DEFAULT_CRIT_CHANCE.low * 2; // 5% -> 10%
+            // Muay Thai: прибавляем базовое значение к вероятности крита в ноги
+            fighter.critChance.low += DEFAULT_CRIT_CHANCE.low; // 5% -> 10%
         }
     }
 
@@ -110,8 +110,8 @@ class Perk {
             return;
         }
         
-        // Удваиваем вероятность крита для выбранной зоны
-        fighter.critChance[this.targetZone] = DEFAULT_CRIT_CHANCE[this.targetZone] * 2;
+        // Прибавляем базовое значение к вероятности крита для выбранной зоны
+        fighter.critChance[this.targetZone] += DEFAULT_CRIT_CHANCE[this.targetZone];
     }
 }
 
