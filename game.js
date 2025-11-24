@@ -421,7 +421,7 @@ class Game {
     constructor() {
         this.player = new Fighter('Игрок', true);
         this.enemy = new Fighter('Противник', false);
-        this.currentPhase = 'personality-selection'; // personality-selection, selection, playing, finished
+        this.currentPhase = 'personality-selection'; // personality-selection, perk-ban, perk-selection, selection, playing, finished
         this.roundNumber = 1;
         this.isPlayerAttacking = true; // В первом раунде игрок атакует первым
         this.selectedActions = [];
@@ -431,6 +431,7 @@ class Game {
         this.playerPerks = []; // Выбранные перки игрока (массив)
         this.enemyPerks = []; // Перки противника (массив)
         this.playerPerkSelectionStep = 0; // Шаг выбора перка игрока (0 - первый выбор, 1 - второй выбор)
+        this.bannedPerk = null; // Забаненный перк (исключается из доступных)
         this.patternAnalyzer = new PatternAnalyzer(); // Анализатор паттернов для адаптивного AI
         
         this.initializeUI();
@@ -503,17 +504,17 @@ class Game {
         this.personalityPersistentBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.PERSISTENT));
         this.personalityAdaptiveBtn.addEventListener('click', () => this.selectPersonality(OPPONENT_PERSONALITY.ADAPTIVE));
         
-        // Обработчики выбора перка
-        this.perkHeadHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.HEAD_HUNTER));
-        this.perkBodyHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.BODY_HUNTER));
-        this.perkLegHunterBtn.addEventListener('click', () => this.selectPerk(PERKS.LEG_HUNTER));
-        this.perkTieBreakerBtn.addEventListener('click', () => this.selectPerk(PERKS.TIE_BREAKER));
-        this.perkHPBoostBtn.addEventListener('click', () => this.selectPerk(PERKS.HP_BOOST));
-        this.perkCritDeflectorBtn.addEventListener('click', () => this.selectPerk(PERKS.CRIT_DEFLECTOR));
-        this.perkLuckerBtn.addEventListener('click', () => this.selectPerk(PERKS.LUCKER));
-        this.perkBlockMasterBtn.addEventListener('click', () => this.selectPerk(PERKS.BLOCK_MASTER));
-        this.perkFinishHimBtn.addEventListener('click', () => this.selectPerk(PERKS.FINISH_HIM));
-        this.perkEqualizerBtn.addEventListener('click', () => this.selectPerk(PERKS.EQUALIZER));
+        // Обработчики выбора/бана перка (работают в зависимости от фазы)
+        this.perkHeadHunterBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.HEAD_HUNTER));
+        this.perkBodyHunterBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.BODY_HUNTER));
+        this.perkLegHunterBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.LEG_HUNTER));
+        this.perkTieBreakerBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.TIE_BREAKER));
+        this.perkHPBoostBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.HP_BOOST));
+        this.perkCritDeflectorBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.CRIT_DEFLECTOR));
+        this.perkLuckerBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.LUCKER));
+        this.perkBlockMasterBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.BLOCK_MASTER));
+        this.perkFinishHimBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.FINISH_HIM));
+        this.perkEqualizerBtn.addEventListener('click', () => this.handlePerkButtonClick(PERKS.EQUALIZER));
         
         // Обработчик изменения размера окна для обновления засечек
         window.addEventListener('resize', () => {
@@ -1221,7 +1222,76 @@ class Game {
         // Сбрасываем статистику паттернов при выборе новой личности
         this.patternAnalyzer.reset();
         
-        // Показываем экран выбора перка
+        // Показываем экран бана перка
+        this.showPerkBan();
+    }
+
+    showPerkBan() {
+        this.currentPhase = 'perk-ban';
+        this.perkSelectionContainer.style.display = 'block';
+        this.controlsContainer.style.display = 'none';
+        this.restartContainer.style.display = 'none';
+        
+        // Обновляем заголовок
+        const titleElement = this.perkSelectionContainer.querySelector('.perk-selection-title');
+        if (titleElement) {
+            titleElement.textContent = 'Забанить перк (исключить из боя)';
+        }
+        
+        // Показываем все доступные перки для бана
+        this.showAllPerksForBan();
+    }
+
+    showAllPerksForBan() {
+        // Массив пар [кнопка, перк] для правильного сопоставления
+        const buttonPerkPairs = [
+            [this.perkHeadHunterBtn, PERKS.HEAD_HUNTER],
+            [this.perkBodyHunterBtn, PERKS.BODY_HUNTER],
+            [this.perkLegHunterBtn, PERKS.LEG_HUNTER],
+            [this.perkTieBreakerBtn, PERKS.TIE_BREAKER],
+            [this.perkHPBoostBtn, PERKS.HP_BOOST],
+            [this.perkCritDeflectorBtn, PERKS.CRIT_DEFLECTOR],
+            [this.perkLuckerBtn, PERKS.LUCKER],
+            [this.perkBlockMasterBtn, PERKS.BLOCK_MASTER],
+            [this.perkFinishHimBtn, PERKS.FINISH_HIM],
+            [this.perkEqualizerBtn, PERKS.EQUALIZER]
+        ];
+        
+        // Обновляем текст и показываем все кнопки
+        buttonPerkPairs.forEach(([btn, perk]) => {
+            if (btn && perk) {
+                btn.style.display = 'block';
+                // Обновляем текст кнопки из объектов Perk
+                const title = btn.querySelector('.perk-btn-title');
+                const desc = btn.querySelector('.perk-btn-description');
+                if (title) {
+                    title.textContent = perk.name;
+                    title.title = perk.description; // Добавляем tooltip с описанием
+                }
+                if (desc) {
+                    desc.textContent = perk.fullName;
+                    desc.title = perk.description; // Добавляем tooltip с описанием
+                }
+                // Также добавляем tooltip на саму кнопку
+                btn.title = perk.description;
+            }
+        });
+    }
+
+    handlePerkButtonClick(perk) {
+        // В зависимости от фазы вызываем соответствующий метод
+        if (this.currentPhase === 'perk-ban') {
+            this.banPerk(perk);
+        } else if (this.currentPhase === 'perk-selection') {
+            this.selectPerk(perk);
+        }
+    }
+
+    banPerk(perk) {
+        // Запоминаем забаненный перк
+        this.bannedPerk = perk;
+        
+        // Переходим к выбору перков
         this.showPerkSelection();
     }
 
@@ -1236,9 +1306,10 @@ class Game {
     }
 
     showRandomPerks() {
-        // Получаем доступные перки (исключаем уже выбранные)
+        // Получаем доступные перки (исключаем уже выбранные и забаненный перк)
         const availablePerks = ALL_PERKS.filter(perk => 
-            !this.playerPerks.some(selected => selected && selected.id === perk.id)
+            !this.playerPerks.some(selected => selected && selected.id === perk.id) &&
+            (!this.bannedPerk || perk.id !== this.bannedPerk.id)
         );
         
         // Выбираем 3 случайных перка
@@ -1279,8 +1350,16 @@ class Game {
                 // Обновляем текст кнопки
                 const title = btn.querySelector('.perk-btn-title');
                 const desc = btn.querySelector('.perk-btn-description');
-                if (title) title.textContent = perk.name;
-                if (desc) desc.textContent = perk.fullName;
+                if (title) {
+                    title.textContent = perk.name;
+                    title.title = perk.description; // Добавляем tooltip с описанием
+                }
+                if (desc) {
+                    desc.textContent = perk.fullName;
+                    desc.title = perk.description; // Добавляем tooltip с описанием
+                }
+                // Также добавляем tooltip на саму кнопку
+                btn.title = perk.description;
             }
         });
     }
@@ -1302,65 +1381,37 @@ class Game {
     }
 
     updatePerkButtons() {
-        // HeadHunter
-        const headHunterTitle = this.perkHeadHunterBtn.querySelector('.perk-btn-title');
-        const headHunterDesc = this.perkHeadHunterBtn.querySelector('.perk-btn-description');
-        if (headHunterTitle) headHunterTitle.textContent = PERKS.HEAD_HUNTER.name;
-        if (headHunterDesc) headHunterDesc.textContent = PERKS.HEAD_HUNTER.fullName;
+        // Массив пар [кнопка, перк] для обновления
+        const buttonPerkPairs = [
+            [this.perkHeadHunterBtn, PERKS.HEAD_HUNTER],
+            [this.perkBodyHunterBtn, PERKS.BODY_HUNTER],
+            [this.perkLegHunterBtn, PERKS.LEG_HUNTER],
+            [this.perkTieBreakerBtn, PERKS.TIE_BREAKER],
+            [this.perkHPBoostBtn, PERKS.HP_BOOST],
+            [this.perkCritDeflectorBtn, PERKS.CRIT_DEFLECTOR],
+            [this.perkLuckerBtn, PERKS.LUCKER],
+            [this.perkBlockMasterBtn, PERKS.BLOCK_MASTER],
+            [this.perkFinishHimBtn, PERKS.FINISH_HIM],
+            [this.perkEqualizerBtn, PERKS.EQUALIZER]
+        ];
         
-        // BodyHunter
-        const bodyHunterTitle = this.perkBodyHunterBtn.querySelector('.perk-btn-title');
-        const bodyHunterDesc = this.perkBodyHunterBtn.querySelector('.perk-btn-description');
-        if (bodyHunterTitle) bodyHunterTitle.textContent = PERKS.BODY_HUNTER.name;
-        if (bodyHunterDesc) bodyHunterDesc.textContent = PERKS.BODY_HUNTER.fullName;
-        
-        // LegHunter
-        const legHunterTitle = this.perkLegHunterBtn.querySelector('.perk-btn-title');
-        const legHunterDesc = this.perkLegHunterBtn.querySelector('.perk-btn-description');
-        if (legHunterTitle) legHunterTitle.textContent = PERKS.LEG_HUNTER.name;
-        if (legHunterDesc) legHunterDesc.textContent = PERKS.LEG_HUNTER.fullName;
-        
-        // TieBreaker
-        const tieBreakerTitle = this.perkTieBreakerBtn.querySelector('.perk-btn-title');
-        const tieBreakerDesc = this.perkTieBreakerBtn.querySelector('.perk-btn-description');
-        if (tieBreakerTitle) tieBreakerTitle.textContent = PERKS.TIE_BREAKER.name;
-        if (tieBreakerDesc) tieBreakerDesc.textContent = PERKS.TIE_BREAKER.fullName;
-        
-        // HPBoost
-        const hpBoostTitle = this.perkHPBoostBtn.querySelector('.perk-btn-title');
-        const hpBoostDesc = this.perkHPBoostBtn.querySelector('.perk-btn-description');
-        if (hpBoostTitle) hpBoostTitle.textContent = PERKS.HP_BOOST.name;
-        if (hpBoostDesc) hpBoostDesc.textContent = PERKS.HP_BOOST.fullName;
-        
-        // CritDeflector
-        const critDeflectorTitle = this.perkCritDeflectorBtn.querySelector('.perk-btn-title');
-        const critDeflectorDesc = this.perkCritDeflectorBtn.querySelector('.perk-btn-description');
-        if (critDeflectorTitle) critDeflectorTitle.textContent = PERKS.CRIT_DEFLECTOR.name;
-        if (critDeflectorDesc) critDeflectorDesc.textContent = PERKS.CRIT_DEFLECTOR.fullName;
-        
-        // Lucker
-        const luckerTitle = this.perkLuckerBtn.querySelector('.perk-btn-title');
-        const luckerDesc = this.perkLuckerBtn.querySelector('.perk-btn-description');
-        if (luckerTitle) luckerTitle.textContent = PERKS.LUCKER.name;
-        if (luckerDesc) luckerDesc.textContent = PERKS.LUCKER.fullName;
-        
-        // BlockMaster
-        const blockMasterTitle = this.perkBlockMasterBtn.querySelector('.perk-btn-title');
-        const blockMasterDesc = this.perkBlockMasterBtn.querySelector('.perk-btn-description');
-        if (blockMasterTitle) blockMasterTitle.textContent = PERKS.BLOCK_MASTER.name;
-        if (blockMasterDesc) blockMasterDesc.textContent = PERKS.BLOCK_MASTER.fullName;
-        
-        // FinishHim
-        const finishHimTitle = this.perkFinishHimBtn.querySelector('.perk-btn-title');
-        const finishHimDesc = this.perkFinishHimBtn.querySelector('.perk-btn-description');
-        if (finishHimTitle) finishHimTitle.textContent = PERKS.FINISH_HIM.name;
-        if (finishHimDesc) finishHimDesc.textContent = PERKS.FINISH_HIM.fullName;
-        
-        // Equalizer
-        const equalizerTitle = this.perkEqualizerBtn.querySelector('.perk-btn-title');
-        const equalizerDesc = this.perkEqualizerBtn.querySelector('.perk-btn-description');
-        if (equalizerTitle) equalizerTitle.textContent = PERKS.EQUALIZER.name;
-        if (equalizerDesc) equalizerDesc.textContent = PERKS.EQUALIZER.fullName;
+        // Обновляем все кнопки
+        buttonPerkPairs.forEach(([btn, perk]) => {
+            if (btn && perk) {
+                const title = btn.querySelector('.perk-btn-title');
+                const desc = btn.querySelector('.perk-btn-description');
+                if (title) {
+                    title.textContent = perk.name;
+                    title.title = perk.description; // Добавляем tooltip с описанием
+                }
+                if (desc) {
+                    desc.textContent = perk.fullName;
+                    desc.title = perk.description; // Добавляем tooltip с описанием
+                }
+                // Также добавляем tooltip на саму кнопку
+                btn.title = perk.description;
+            }
+        });
     }
 
     selectPerk(perk) {
@@ -1403,8 +1454,10 @@ class Game {
     }
 
     getRandomEnemyPerks() {
-        // Выбираем случайные перки из доступных
-        const availablePerks = [...ALL_PERKS];
+        // Выбираем случайные перки из доступных (исключаем забаненный перк)
+        const availablePerks = ALL_PERKS.filter(perk => 
+            !this.bannedPerk || perk.id !== this.bannedPerk.id
+        );
         
         if (availablePerks.length === 0) {
             return [];
@@ -1430,9 +1483,16 @@ class Game {
                 .join(', ');
             this.playerPerkDisplay.textContent = perkNames;
             this.playerPerkDisplay.classList.add('active');
+            // Добавляем tooltip с описанием всех перков
+            const perkDescriptions = this.player.activePerks
+                .filter(p => p !== null)
+                .map(p => `${p.name}: ${p.description}`)
+                .join('\n');
+            this.playerPerkDisplay.title = perkDescriptions;
         } else {
             this.playerPerkDisplay.textContent = '';
             this.playerPerkDisplay.classList.remove('active');
+            this.playerPerkDisplay.title = '';
         }
         
         // Обновляем отображение перков противника (короткие названия через запятую)
@@ -1443,9 +1503,16 @@ class Game {
                 .join(', ');
             this.enemyPerkDisplay.textContent = perkNames;
             this.enemyPerkDisplay.classList.add('active');
+            // Добавляем tooltip с описанием всех перков
+            const perkDescriptions = this.enemy.activePerks
+                .filter(p => p !== null)
+                .map(p => `${p.name}: ${p.description}`)
+                .join('\n');
+            this.enemyPerkDisplay.title = perkDescriptions;
         } else {
             this.enemyPerkDisplay.textContent = '';
             this.enemyPerkDisplay.classList.remove('active');
+            this.enemyPerkDisplay.title = '';
         }
     }
 
@@ -1460,6 +1527,7 @@ class Game {
         this.playerPerks = [];
         this.enemyPerks = [];
         this.playerPerkSelectionStep = 0;
+        this.bannedPerk = null;
         // Сбрасываем анализатор паттернов
         this.patternAnalyzer.reset();
         
