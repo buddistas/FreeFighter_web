@@ -45,8 +45,8 @@ class FightingStyle {
             fighter.critChance.mid += DEFAULT_CRIT_CHANCE.mid; // 5% -> 10%
             fighter.critChance.high += DEFAULT_CRIT_CHANCE.high; // 10% -> 20%
         } else if (this.id === 'muay_thai') {
-            // Muay Thai: прибавляем базовое значение к вероятности крита в ноги
-            fighter.critChance.low += DEFAULT_CRIT_CHANCE.low; // 5% -> 10%
+            // Muay Thai: прибавляем тройное базовое значение к вероятности крита в ноги
+            fighter.critChance.low += DEFAULT_CRIT_CHANCE.low * 2; // 5% -> 15% (тройной бонус: +10%)
         }
     }
 
@@ -94,7 +94,7 @@ const FIGHTING_STYLES = {
         'muay_thai',
         'Muay Thai',
         'Тайский бокс',
-        ['Удвоенная вероятность крита в ноги (+5%)', '50% шанс превратить пропущенный крит в ноги в обычный удар'],
+        ['Утроенная вероятность крита в ноги (+10%)', '50% шанс превратить пропущенный крит в ноги в обычный удар'],
         []
     ),
     KICKBOXING: new FightingStyle(
