@@ -421,6 +421,7 @@ class Game {
         // Элементы UI
         this.phaseLabel = document.getElementById('phase-label');
         this.selectedList = document.getElementById('selected-list');
+        this.draftIconsContainer = document.getElementById('draft-icons-container');
         this.controlsContainer = document.getElementById('controls-container');
         this.restartContainer = document.getElementById('restart-container');
         this.restartBtn = document.getElementById('restart-btn');
@@ -509,23 +510,26 @@ class Game {
         this.selectedActions.push(action);
         this.updateSelectedActionsDisplay();
         
-        // Обновляем стиль кнопки
-        const btn = document.getElementById(`btn-${action}`);
-        btn.classList.add('selected');
-        
         if (this.selectedActions.length >= ACTIONS_PER_PHASE) {
             this.startPhase();
         }
     }
 
     updateSelectedActionsDisplay() {
-        this.selectedList.innerHTML = '';
+        this.draftIconsContainer.innerHTML = '';
+        // Выбираем правильные изображения в зависимости от фазы
+        const imageType = this.isPlayerAttacking ? 'attack' : 'block';
         this.selectedActions.forEach((action, index) => {
-            const item = document.createElement('div');
-            item.className = 'selected-item';
-            const actionNames = { high: 'Верх', mid: 'Середина', low: 'Низ' };
-            item.textContent = `${index + 1}. ${actionNames[action]}`;
-            this.selectedList.appendChild(item);
+            const icon = document.createElement('img');
+            icon.className = 'draft-icon';
+            icon.src = IMAGE_PATHS[imageType][action];
+            icon.alt = action;
+            // Добавляем пиктограмму сразу, чтобы она заняла правильную позицию
+            this.draftIconsContainer.appendChild(icon);
+            // Добавляем небольшую задержку для анимации появления
+            setTimeout(() => {
+                icon.style.animation = 'iconAppear 0.3s ease forwards';
+            }, index * 100);
         });
     }
 
@@ -539,7 +543,6 @@ class Game {
         // Отключаем кнопки
         [this.btnHigh, this.btnMid, this.btnLow].forEach(btn => {
             btn.disabled = true;
-            btn.classList.remove('selected');
         });
         
         // Устанавливаем последовательности
@@ -1106,6 +1109,7 @@ class Game {
         this.currentPhase = 'selection';
         this.selectedActions = [];
         this.selectedList.innerHTML = '';
+        this.draftIconsContainer.innerHTML = '';
         
         // Показываем кнопки выбора и скрываем область результатов
         this.controlsContainer.style.display = 'flex';
@@ -1120,10 +1124,9 @@ class Game {
             'Выберите 3 атаки' : 'Выберите 3 блока';
         this.phaseLabel.textContent = phaseText;
         
-        // Включаем кнопки и снимаем выделение
+        // Включаем кнопки
         [this.btnHigh, this.btnMid, this.btnLow].forEach(btn => {
             btn.disabled = false;
-            btn.classList.remove('selected');
         });
     }
 
@@ -1320,6 +1323,7 @@ class Game {
         this.clearActionDisplays();
         this.updateHealthBars();
         this.selectedList.innerHTML = '';
+        this.draftIconsContainer.innerHTML = '';
         this.updatePerkDisplays();
         
         // Показываем экран выбора характера при рестарте
